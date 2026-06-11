@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Assinaturas & adimplência — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="">Todos os tipos</option>
+      {% for valor, rotulo in tipos %}
+        {% if valor != 'ignorar' and valor != 'outros' %}
+        <option value="{{ valor }}" {% if valor == tipo_sel %}selected{% endif %}>{{ rotulo }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+    <noscript><button class="btn btn-claro" type="submit">Filtrar</button></noscript>
+  </form>
+
+  <form method="post" action="{% url 'assinaturas_sincronizar' %}">
+    {% csrf_token %}
+    <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar com a Vindi</button>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip"><span class="chip-num">{{ total }}</span><span class="chip-lbl">Filiados ativos</span></div>
+  <div class="chip chip-ok"><span class="chip-num">{{ em_dia }}</span><span class="chip-lbl">Em dia</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">{{ inadimplentes }}</span><span class="chip-lbl">Inadimplentes</span></div>
+</div>
+
+<div class="cartao">
+  <div class="cartao-topo">
+    <span class="contador">Filiados ativos <strong>{{ total }}</strong></span>
+    {% if ultima_sync %}<span class="sync-info">Última sincronização: {{ ultima_sync|date:"d/m/Y H:i" }}</span>{% endif %}
+  </div>
+
+  {% if assinaturas %}
+  <table class="tabela">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Plano</th>
+        <th>Tipo</th>
+        <th>Data de filiação</th>
+        <th>Status de pagamento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in assinaturas %}
+      <tr>
+        <td>{{ a.cliente_nome|default:"—" }}</td>
+        <td>{{ a.plano_nome|default:"—" }}</td>
+        <td><span class="badge badge-tipo">{{ a.get_tipo_display }}</span></td>
+        <td>{{ a.data_inicio|date:"d/m/Y"|default:"—" }}</td>
+        <td>
+          {% if a.status_pagamento == 'Em dia' %}<span class="badge badge-ok">Em dia</span>
+          {% elif a.status_pagamento == 'Inadimplente' %}<span class="badge badge-atraso">Inadimplente</span>
+          {% else %}<span class="badge badge-cancel">{{ a.status_pagamento }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio-aviso">
+    Nenhum filiado ativo encontrado para este filtro.<br>
+    Clique em <strong>“Sincronizar com a Vindi”</strong> para atualizar os dados.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

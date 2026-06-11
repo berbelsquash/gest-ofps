@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Resumo & previsões — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="ano" onchange="this.form.submit()">
+      {% for a in anos %}
+      <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <form method="post" action="{% url 'assinaturas_sincronizar' %}">
+    {% csrf_token %}
+    <input type="hidden" name="voltar_para" value="resumo_assinaturas">
+    <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar com a Vindi</button>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_real|floatformat:2 }}</span><span class="chip-lbl">Recebido em {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ total_prev|floatformat:2 }}</span><span class="chip-lbl">Previsto (resto de {{ ano }})</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ projecao_ano|floatformat:2 }}</span><span class="chip-lbl">Projeção do ano</span></div>
+</div>
+
+<div class="cartao">
+  <div class="cartao-topo">
+    <span class="contador">{{ ano }} — mês a mês</span>
+    <span class="sync-info">Previsão baseada em {{ ativos_count }} assinaturas ativas e suas datas de cobrança.</span>
+  </div>
+  <table class="tabela">
+    <thead><tr><th>Mês</th><th>Recebido</th><th>Previsto</th></tr></thead>
+    <tbody>
+      {% for l in linhas %}
+      <tr>
+        <td>{{ l.mes }}</td>
+        <td>{% if not l.futuro %}R$ {{ l.realizado|floatformat:2 }}{% else %}<span class="badge badge-cancel">—</span>{% endif %}</td>
+        <td>{% if l.futuro %}R$ {{ l.previsto|floatformat:2 }}{% else %}<span class="badge badge-cancel">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-pie-chart"></i> Recebido em {{ ano }} por tipo</h2>
+<div class="cartao">
+  <table class="tabela">
+    <thead><tr><th>Tipo</th><th>Pagamentos</th><th>Total</th></tr></thead>
+    <tbody>
+      {% for t in por_tipo %}
+      <tr>
+        <td><span class="badge badge-tipo">{{ t.label }}</span></td>
+        <td>{{ t.n }}</td>
+        <td>R$ {{ t.s|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

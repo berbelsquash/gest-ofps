@@ -1,0 +1,26 @@
+# Ambiente virtual do Python
+.venv/
+venv/
+env/
+
+# Banco de dados local (SQLite) — NÃO subir para o GitHub
+db.sqlite3
+db.sqlite3-journal
+
+# Variáveis de ambiente e segredos — NÃO subir
+.env
+
+# Cache e artefatos do Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Arquivos estáticos coletados (gerados em produção)
+/staticfiles/
+
+# Editores e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

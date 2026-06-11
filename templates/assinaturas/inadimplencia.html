@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Inadimplência & cancelamentos — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="">Todos os tipos</option>
+      {% for valor, rotulo in tipos %}
+      <option value="{{ valor }}" {% if valor == tipo_sel %}selected{% endif %}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button class="btn btn-claro" type="submit">Filtrar</button></noscript>
+  </form>
+
+  <form method="post" action="{% url 'assinaturas_sincronizar' %}">
+    {% csrf_token %}
+    <input type="hidden" name="voltar_para" value="inadimplencia_cancelamentos">
+    <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar com a Vindi</button>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip chip-alerta"><span class="chip-num">{{ total_inad }}</span><span class="chip-lbl">Inadimplentes</span></div>
+  <div class="chip"><span class="chip-num">{{ total_canc }}</span><span class="chip-lbl">Cancelamentos</span></div>
+  <div class="chip chip-ok"><span class="chip-num">{{ voltaram }}</span><span class="chip-lbl">Cancelaram mas têm assinatura ativa</span></div>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-exclamation-triangle"></i> Inadimplentes</h2>
+<div class="cartao">
+  <div class="cartao-topo"><span class="contador">Em atraso <strong>{{ total_inad }}</strong></span></div>
+  {% if inadimplentes %}
+  <table class="tabela">
+    <thead>
+      <tr><th>Nome</th><th>Plano</th><th>Tipo</th><th>Inadimplente desde</th><th>Situação do cliente</th></tr>
+    </thead>
+    <tbody>
+      {% for a in inadimplentes %}
+      <tr>
+        <td>{{ a.cliente_nome|default:"—" }}</td>
+        <td>{{ a.plano_nome|default:"—" }}</td>
+        <td><span class="badge badge-tipo">{{ a.get_tipo_display }}</span></td>
+        <td>{{ a.inadimplente_desde|date:"d/m/Y"|default:"—" }}</td>
+        <td>
+          {% if a.tem_outra %}<span class="badge badge-ok">Tem outra assinatura em dia</span>
+          {% else %}<span class="badge badge-atraso">Sem outra ativa</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio-aviso">Nenhum inadimplente neste filtro. 🎉</div>
+  {% endif %}
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-x-circle"></i> Cancelamentos</h2>
+<div class="cartao">
+  <div class="cartao-topo">
+    <span class="contador">Cancelados <strong>{{ total_canc }}</strong></span>
+    {% if mostrando_canc < total_canc %}<span class="sync-info">Mostrando os {{ mostrando_canc }} mais recentes.</span>{% endif %}
+  </div>
+  {% if cancelados %}
+  <table class="tabela">
+    <thead>
+      <tr><th>Nome</th><th>Plano</th><th>Tipo</th><th>Cancelada em</th><th>Re-assinatura</th></tr>
+    </thead>
+    <tbody>
+      {% for a in cancelados %}
+      <tr>
+        <td>{{ a.cliente_nome|default:"—" }}</td>
+        <td>{{ a.plano_nome|default:"—" }}</td>
+        <td><span class="badge badge-tipo">{{ a.get_tipo_display }}</span></td>
+        <td>{{ a.cancelada_em|date:"d/m/Y"|default:"—" }}</td>
+        <td>
+          {% if a.re_assinou %}<span class="badge badge-ok">Re-assinou ✓</span>
+          {% else %}<span class="badge badge-cancel">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio-aviso">Nenhum cancelamento neste filtro.</div>
+  {% endif %}
+</div>
+{% endblock %}

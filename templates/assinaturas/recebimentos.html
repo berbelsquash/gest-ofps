@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Recebimentos — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <input type="text" name="q" value="{{ busca }}" placeholder="Buscar por nome...">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="">Todos os tipos</option>
+      {% for valor, rotulo in tipos %}
+      <option value="{{ valor }}" {% if valor == tipo_sel %}selected{% endif %}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+    <select name="ano" onchange="this.form.submit()">
+      <option value="">Todos os anos</option>
+      {% for a in anos %}
+      <option value="{{ a }}" {% if a|stringformat:'s' == ano_sel %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-claro" type="submit"><i class="bi bi-search"></i> Filtrar</button>
+  </form>
+
+  <form method="post" action="{% url 'assinaturas_sincronizar' %}">
+    {% csrf_token %}
+    <input type="hidden" name="voltar_para" value="recebimentos">
+    <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar com a Vindi</button>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_valor|floatformat:2 }}</span><span class="chip-lbl">Total recebido (filtro atual)</span></div>
+  <div class="chip"><span class="chip-num">{{ total_qtd }}</span><span class="chip-lbl">Pagamentos</span></div>
+</div>
+
+<div class="cartao">
+  <div class="cartao-topo">
+    <span class="contador">Recebimentos <strong>{{ total_qtd }}</strong></span>
+    {% if mostrando < total_qtd %}<span class="sync-info">Mostrando os {{ mostrando }} mais recentes — use os filtros para refinar.</span>{% endif %}
+  </div>
+
+  {% if recebimentos %}
+  <table class="tabela">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Plano</th>
+        <th>Tipo</th>
+        <th>Valor</th>
+        <th>Data do pagamento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recebimentos %}
+      <tr>
+        <td>{{ r.cliente_nome|default:"—" }}</td>
+        <td>{{ r.plano_nome|default:"—" }}</td>
+        <td><span class="badge badge-tipo">{{ r.get_tipo_display }}</span></td>
+        <td>R$ {{ r.valor|floatformat:2 }}</td>
+        <td>{{ r.data_pagamento|date:"d/m/Y"|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="vazio-aviso">
+    Nenhum recebimento encontrado.<br>
+    Clique em <strong>“Sincronizar com a Vindi”</strong> para puxar as faturas pagas.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

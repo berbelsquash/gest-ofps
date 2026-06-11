@@ -1,0 +1,246 @@
+/* ===========================================================================
+   Gestão FPS — estilo do painel
+   Paleta inspirada na FPS: sidebar azul-marinho + degradê de marca roxo→azul.
+   Troque as 4 variáveis de cor abaixo para ajustar tudo de uma vez.
+   =========================================================================== */
+
+:root {
+  --marca-ini: #7b4dff;   /* roxo (degradê de marca) */
+  --marca-fim: #27a8e0;   /* azul (degradê de marca) */
+  --marca: linear-gradient(100deg, var(--marca-ini) 0%, var(--marca-fim) 100%);
+
+  --sidebar-1: #101c30;   /* azul-marinho topo */
+  --sidebar-2: #0b1322;   /* azul-marinho base */
+  --sidebar: linear-gradient(185deg, var(--sidebar-1) 0%, var(--sidebar-2) 100%);
+
+  --accent: #2f9fe0;
+  --ok: #1f9d6b;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --texto: #1d2733;
+  --texto-suave: #67748a;
+  --borda: #e7ebf2;
+  --sidebar-larg: 266px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Poppins", system-ui, -apple-system, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--texto);
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+
+/* --------------------------------------------------------------- Marca/logo */
+.logo {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; letter-spacing: .5px;
+  background: var(--marca); color: #fff;
+  flex: none;
+}
+.marca-texto { display: flex; flex-direction: column; line-height: 1.15; }
+.marca-texto strong { font-weight: 600; font-size: 15px; }
+.marca-texto small { font-size: 11px; }
+
+/* --------------------------------------------------------------- Sidebar */
+.sidebar {
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-larg); height: 100vh;
+  background: var(--sidebar); color: #fff;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 20px 14px;
+  overflow-y: auto;
+}
+.sidebar .marca-texto strong { color: #fff; }
+.sidebar .marca-texto small { color: rgba(255, 255, 255, .5); }
+
+.sidebar-marca {
+  display: flex; align-items: center; gap: 11px;
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo-titulo {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+  color: rgba(255, 255, 255, .38); font-weight: 600;
+  padding: 6px 12px 4px;
+}
+.nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 12px; border-radius: 9px;
+  font-size: 14px; color: rgba(255, 255, 255, .78);
+  transition: background .15s, color .15s;
+}
+.nav-item i { font-size: 16px; width: 18px; text-align: center; color: rgba(255, 255, 255, .55); transition: color .15s; }
+.nav-item:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+.nav-item:hover i { color: #fff; }
+.nav-item.ativo { background: rgba(255, 255, 255, .09); color: #fff; font-weight: 600; }
+.nav-item.ativo i { color: #fff; }
+.nav-item.ativo::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--marca);
+}
+
+.sidebar-rodape {
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  padding-top: 12px;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.sidebar-rodape .usuario { font-size: 13px; color: rgba(255, 255, 255, .82); padding: 0 4px; }
+.sidebar-rodape form { margin: 0; }
+.sidebar-rodape button {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255, 255, 255, .08); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .16);
+  padding: 8px; border-radius: 8px;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  transition: background .15s;
+}
+.sidebar-rodape button:hover { background: rgba(255, 255, 255, .16); }
+.sidebar-rodape .link-admin { font-size: 12px; color: rgba(255, 255, 255, .5); text-align: center; }
+.sidebar-rodape .link-admin:hover { color: #fff; text-decoration: underline; }
+
+/* --------------------------------------------------------------- Área principal */
+.area-principal {
+  margin-left: var(--sidebar-larg);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+body.sem-sidebar .area-principal { margin-left: 0; }
+body.sem-sidebar .conteudo { padding: 0; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  background: #fff; border-bottom: 1px solid var(--borda);
+  padding: 12px 28px;
+  display: flex; align-items: center; gap: 14px;
+}
+.topbar .barra-grad { width: 5px; height: 40px; border-radius: 4px; background: var(--marca); flex: none; }
+.topbar-textos { display: flex; flex-direction: column; }
+.topbar .grupo-atual {
+  font-size: 11.5px; color: var(--texto-suave);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.topbar .titulo-atual { font-size: 20px; font-weight: 600; }
+
+.conteudo { padding: 28px; flex: 1; }
+
+.mensagens { list-style: none; margin: 16px 28px 0; padding: 0; }
+.mensagens .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+.mensagens .success { background: #e6f7f0; color: #0d6b4a; }
+.mensagens .error { background: #fdecea; color: #c0392b; }
+
+/* --------------------------------------------------------------- Placeholder (seção vazia) */
+.placeholder {
+  max-width: 560px; margin: 56px auto; text-align: center;
+  background: var(--card); border: 1.5px dashed var(--borda);
+  border-radius: 16px; padding: 48px 32px;
+}
+.placeholder-icone { font-size: 42px; margin-bottom: 10px; }
+.placeholder p { margin: 6px 0; font-size: 16px; }
+.placeholder .sub { color: var(--texto-suave); font-size: 14px; }
+
+/* --------------------------------------------------------------- Login */
+.login-wrap {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--marca); padding: 24px;
+}
+.login-card {
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 18px; padding: 34px;
+  box-shadow: 0 24px 60px rgba(11, 19, 34, .28);
+}
+.login-card .login-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.login-card .marca-texto strong { color: var(--texto); }
+.login-card .marca-texto small { color: var(--texto-suave); }
+.login-card h1 { font-size: 22px; font-weight: 600; margin: 0; }
+.login-card .login-sub { color: var(--texto-suave); font-size: 13px; margin: 2px 0 0; }
+.login-card form { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.login-card label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; font-weight: 500; color: var(--texto-suave);
+}
+.login-card input {
+  padding: 11px 13px; border: 1px solid var(--borda); border-radius: 10px;
+  font-family: inherit; font-size: 15px; color: var(--texto);
+}
+.login-card input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 159, 224, .15);
+}
+.login-card button {
+  margin-top: 6px; background: var(--marca); color: #fff; border: none;
+  padding: 12px; border-radius: 10px;
+  font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.login-card button:hover { filter: brightness(1.06); }
+.login-card .erro {
+  background: #fdecea; color: #c0392b;
+  padding: 9px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px;
+}
+
+/* --------------------------------------------------------------- Telas de listagem */
+.barra-acoes { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0; }
+.filtros select, .filtros input {
+  padding: 9px 12px; border: 1px solid var(--borda); border-radius: 9px;
+  font-family: inherit; font-size: 14px; background: #fff; color: var(--texto);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: none; border-radius: 9px; padding: 9px 15px;
+  font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.btn-grad { background: var(--marca); color: #fff; }
+.btn-grad:hover { filter: brightness(1.06); }
+.btn-claro { background: #fff; border: 1px solid var(--borda); color: var(--texto); }
+.btn-claro:hover { border-color: var(--accent); color: var(--accent); }
+
+.cartao { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; overflow: hidden; }
+.cartao-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+.cartao-topo .contador { font-size: 13px; color: var(--texto-suave); }
+.cartao-topo .contador strong { color: var(--texto); font-size: 16px; }
+.cartao-topo .sync-info { font-size: 12px; color: var(--texto-suave); }
+
+table.tabela { width: 100%; border-collapse: collapse; }
+table.tabela th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--texto-suave); padding: 12px 18px; background: #fafbfd; border-bottom: 1px solid var(--borda);
+}
+table.tabela td { padding: 13px 18px; border-bottom: 1px solid var(--borda); font-size: 14px; }
+table.tabela tr:last-child td { border-bottom: none; }
+table.tabela tbody tr:hover td { background: #fafbfd; }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.badge-ok { background: #e6f7f0; color: #0d6b4a; }
+.badge-atraso { background: #fdecea; color: #c0392b; }
+.badge-cancel { background: #eef1f5; color: #67748a; }
+.badge-tipo { background: #eef0ff; color: #5b53d6; }
+
+.vazio-aviso { padding: 44px; text-align: center; color: var(--texto-suave); line-height: 1.7; }
+
+.resumo-chips { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.chip { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 18px; display: flex; flex-direction: column; min-width: 120px; }
+.chip-num { font-size: 24px; font-weight: 700; color: var(--texto); line-height: 1.1; }
+.chip-lbl { font-size: 12px; color: var(--texto-suave); margin-top: 2px; }
+.chip-ok .chip-num { color: #0d6b4a; }
+.chip-alerta .chip-num { color: #c0392b; }
+
+.secao-titulo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; margin: 26px 0 12px; color: var(--texto); }
+.secao-titulo i { color: var(--accent); }
+
+/* --------------------------------------------------------------- Responsivo */
+@media (max-width: 860px) { :root { --sidebar-larg: 224px; } }
+@media (max-width: 640px) {
+  .sidebar { position: static; width: 100%; height: auto; }
+  .area-principal { margin-left: 0; }
+}

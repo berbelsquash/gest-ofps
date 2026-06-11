@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Gestão FPS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/painel.css' %}?v=5">
+</head>
+<body class="{% if user.is_authenticated %}com-sidebar{% else %}sem-sidebar{% endif %}">
+  {% if user.is_authenticated %}
+  <aside class="sidebar">
+    <div class="sidebar-marca">
+      <span class="logo">FPS</span>
+      <span class="marca-texto">
+        <strong>Gestão FPS</strong>
+        <small>Federação Paulista de Squash</small>
+      </span>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% for grupo in menu %}
+      <div class="nav-grupo">
+        <span class="nav-grupo-titulo">{{ grupo.titulo }}</span>
+        {% for item in grupo.itens %}
+        <a class="nav-item{% if item.slug == slug_ativo %} ativo{% endif %}"
+           href="{% url 'secao' slug=item.slug %}">
+          <i class="bi {{ item.icone }}"></i><span>{{ item.label }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar-rodape">
+      <span class="usuario"><i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}</span>
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit"><i class="bi bi-box-arrow-right"></i> Sair</button>
+      </form>
+      <a class="link-admin" href="/admin/">Administração avançada</a>
+    </div>
+  </aside>
+  {% endif %}
+
+  <div class="area-principal">
+    {% if user.is_authenticated %}
+    <header class="topbar">
+      <span class="barra-grad"></span>
+      <div class="topbar-textos">
+        <span class="grupo-atual">{{ grupo_atual }}</span>
+        <span class="titulo-atual">{{ titulo }}</span>
+      </div>
+    </header>
+    {% endif %}
+
+    {% if messages %}
+    <ul class="mensagens">
+      {% for m in messages %}<li class="msg {{ m.tags }}">{{ m }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <main class="conteudo">
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>
