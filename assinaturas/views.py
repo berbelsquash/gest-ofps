@@ -9,6 +9,7 @@ from django.db.models.functions import ExtractMonth
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
+from financeiro.models import LancamentoBancario
 from painel.menu import contexto_base
 
 from .models import AssinaturaVindi, PlanoVindi, RecebimentoVindi
@@ -209,6 +210,11 @@ def resumo(request):
 
     anos = [d.year for d in RecebimentoVindi.objects.dates("data_pagamento", "year", order="DESC")]
 
+    # Quanto da Vindi já caiu de fato na conta (cartão/Yapay identificado no extrato).
+    caiu_conta = LancamentoBancario.objects.filter(
+        tipo="receita", grupo="Cartão/Vindi", data__year=ano
+    ).aggregate(s=Sum("valor"))["s"] or Decimal("0")
+
     contexto = contexto_base(
         "resumo-assinaturas",
         ano=ano,
@@ -217,6 +223,8 @@ def resumo(request):
         total_real=total_real,
         total_prev=total_prev,
         projecao_ano=total_real + total_prev,
+        caiu_conta=caiu_conta,
+        a_receber=total_real - caiu_conta,
         por_tipo=por_tipo,
         ativos_count=ativos.count(),
     )

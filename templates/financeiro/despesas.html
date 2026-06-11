@@ -41,15 +41,15 @@
 </div>
 <div class="cartao tabela-wrap">
   <table class="tabela">
-    <thead><tr><th>Mês</th><th>Grupo</th><th>Categoria</th><th>Evento</th><th>Valor</th></tr></thead>
+    <thead><tr><th>Mês</th><th>Data</th><th>Categoria</th><th>Despesa (como no extrato)</th><th>Valor</th></tr></thead>
     <tbody>
       {% for l in detalhe %}
       <tr>
-        <td>{{ l.mes_nome }}</td>
-        <td>{{ l.grupo }}</td>
+        <td>{{ l.data|date:"F"|capfirst }}</td>
+        <td>{{ l.data|date:"d/m/Y" }}</td>
         <td>{% if l.categoria %}<span class="badge badge-tipo">{{ l.categoria }}</span>{% else %}—{% endif %}</td>
-        <td>{{ l.evento|default:"—" }}</td>
-        <td class="val-neg">R$ {{ l.valor|floatformat:2 }}</td>
+        <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:40 }}</td>
+        <td class="val-neg">R$ {{ l.valor_abs|floatformat:2 }}</td>
       </tr>
       {% endfor %}
     </tbody>

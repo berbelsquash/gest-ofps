@@ -15,6 +15,7 @@ MENU = [
         "itens": [
             {"slug": "financeiro-despesas", "label": "Despesas", "icone": "bi-arrow-down-circle"},
             {"slug": "financeiro-receitas", "label": "Receitas", "icone": "bi-arrow-up-circle"},
+            {"slug": "financeiro-balanco", "label": "Balanço", "icone": "bi-wallet2"},
             {"slug": "financeiro-eventos", "label": "Por evento", "icone": "bi-calendar-event"},
             {"slug": "financeiro-previsao", "label": "Previsão & fechamento", "icone": "bi-graph-up"},
             {"slug": "financeiro-conciliacao", "label": "Conciliação Vindi", "icone": "bi-link-45deg"},

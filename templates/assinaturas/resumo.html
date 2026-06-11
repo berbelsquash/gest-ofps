@@ -20,7 +20,9 @@
 </div>
 
 <div class="resumo-chips">
-  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_real|floatformat:2 }}</span><span class="chip-lbl">Recebido em {{ ano }}</span></div>
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_real|floatformat:2 }}</span><span class="chip-lbl">Recebido na Vindi ({{ ano }})</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ caiu_conta|floatformat:2 }}</span><span class="chip-lbl">Caiu na conta (via extrato)</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ a_receber|floatformat:2 }}</span><span class="chip-lbl">Diferença (trânsito + taxas)</span></div>
   <div class="chip"><span class="chip-num">R$ {{ total_prev|floatformat:2 }}</span><span class="chip-lbl">Previsto (resto de {{ ano }})</span></div>
   <div class="chip"><span class="chip-num">R$ {{ projecao_ano|floatformat:2 }}</span><span class="chip-lbl">Projeção do ano</span></div>
 </div>

@@ -69,14 +69,148 @@ def _pagina_ledger(request, tipo, template, slug):
     return render(request, template, contexto)
 
 
+def _anos_banco():
+    anos = [d.year for d in LancamentoBancario.objects.dates("data", "year", order="DESC")]
+    return anos or [2026]
+
+
+def _pivot_extrato(qs):
+    dados = qs.annotate(m=ExtractMonth("data")).values("grupo", "m").annotate(s=Sum("valor"))
+    grupos = defaultdict(lambda: defaultdict(Decimal))
+    tot = defaultdict(Decimal)
+    for row in dados:
+        g = row["grupo"] or "(a classificar)"
+        v = abs(row["s"] or Decimal("0"))
+        grupos[g][row["m"]] += v
+        tot[row["m"]] += v
+    linhas = []
+    for g in sorted(grupos, key=lambda x: -sum(grupos[x].values())):
+        meses = [grupos[g].get(m, Decimal("0")) for m in range(1, 13)]
+        linhas.append({"grupo": g, "meses": meses, "total": sum(meses)})
+    totais = [tot.get(m, Decimal("0")) for m in range(1, 13)]
+    return linhas, totais, sum(totais)
+
+
 @login_required
 def despesas(request):
-    return _pagina_ledger(request, "despesa", "financeiro/despesas.html", "financeiro-despesas")
+    """Despesas mês a mês — direto do extrato (data e descrição como no banco)."""
+    ano = int(request.GET.get("ano") or 2026)
+    grupo_sel = request.GET.get("grupo", "")
+    qs = LancamentoBancario.objects.filter(tipo="despesa", data__year=ano)
+    linhas, totais, total = _pivot_extrato(qs)
+    det = qs
+    if grupo_sel:
+        det = det.filter(grupo=grupo_sel)
+    det = list(det.order_by("data", "-id")[:600])
+    for l in det:
+        l.valor_abs = abs(l.valor)
+    contexto = contexto_base(
+        "financeiro-despesas", ano=ano, anos=_anos_banco(), meses=MESES,
+        linhas=linhas, totais=totais, total=total,
+        detalhe=det, grupos=[l["grupo"] for l in linhas], grupo_sel=grupo_sel,
+    )
+    return render(request, "financeiro/despesas.html", contexto)
+
+
+SALDO_INICIAL_2026 = Decimal("3875.03")  # saldo da conta em 31/12/2025 (do extrato)
 
 
 @login_required
 def receitas(request):
-    return _pagina_ledger(request, "receita", "financeiro/receitas.html", "financeiro-receitas")
+    """Receitas mês a mês — direto do extrato (data e descrição como no banco)."""
+    ano = int(request.GET.get("ano") or 2026)
+    grupo_sel = request.GET.get("grupo", "")
+    qs = LancamentoBancario.objects.filter(tipo="receita", data__year=ano)
+    linhas, totais, total = _pivot_extrato(qs)
+    det = qs
+    if grupo_sel:
+        det = det.filter(grupo=grupo_sel)
+    det = list(det.order_by("data", "-id")[:600])
+    contexto = contexto_base(
+        "financeiro-receitas", ano=ano, anos=_anos_banco(), meses=MESES,
+        linhas=linhas, totais=totais, total=total,
+        detalhe=det, grupos=[l["grupo"] for l in linhas], grupo_sel=grupo_sel,
+    )
+    return render(request, "financeiro/receitas.html", contexto)
+
+
+@login_required
+def balanco(request):
+    """Balanço: saldo atual da conta + resumo mês a mês (receitas, despesas, resultado)."""
+    ano = int(request.GET.get("ano") or 2026)
+    rec = {m: Decimal("0") for m in range(1, 13)}
+    desp = {m: Decimal("0") for m in range(1, 13)}
+    for row in (LancamentoBancario.objects.filter(data__year=ano)
+                .annotate(m=ExtractMonth("data")).values("m", "tipo").annotate(s=Sum("valor"))):
+        if row["m"]:
+            if row["tipo"] == "receita":
+                rec[row["m"]] = row["s"] or Decimal("0")
+            else:
+                desp[row["m"]] = abs(row["s"] or Decimal("0"))
+    saldo_inicial = SALDO_INICIAL_2026 if ano == 2026 else Decimal("0")
+    rec_list = [rec[m] for m in range(1, 13)]
+    desp_list = [desp[m] for m in range(1, 13)]
+    result_list = [rec[m] - desp[m] for m in range(1, 13)]
+    tot_rec = sum(rec_list)
+    tot_desp = sum(desp_list)
+    rows = [
+        {"label": "Receitas", "valores": rec_list, "total": tot_rec, "classe": "val-pos"},
+        {"label": "Despesas", "valores": desp_list, "total": tot_desp, "classe": "val-neg"},
+        {"label": "Total (resultado)", "valores": result_list, "total": tot_rec - tot_desp, "classe": "col-total"},
+    ]
+    # Linha de saldo na conta (acumulado), só até o último mês com movimento.
+    ultimo = max((m for m in range(1, 13) if rec[m] or desp[m]), default=0)
+    saldo_list, acum = [], saldo_inicial
+    for m in range(1, 13):
+        acum += rec[m] - desp[m]
+        saldo_list.append(acum if m <= ultimo else Decimal("0"))
+    rows.append({"label": "Saldo na conta", "valores": saldo_list,
+                 "total": saldo_inicial + tot_rec - tot_desp, "classe": "col-total"})
+
+    # --- Projeção do ano: realizado (até o mês atual) + previsto (depois) ---
+    hoje = timezone.localdate()
+    mes_atual = hoje.month if ano == hoje.year else 12
+    vindi_prev = _vindi_previsto(ano, hoje)
+    # Despesa futura prevista = média mensal SÓ das recorrentes definidas pela FPS:
+    # folha (sem Aline, que saiu) + contabilidade + taxas Vindi/Yapay + telefone (Claro) + Mailchimp.
+    # Squash Wall (aluguel só no início do ano) e torneios NÃO entram na recorrência.
+    recorrente_filtro = (
+        (Q(grupo="Folha") & ~Q(categoria="Aline Rocha"))
+        | Q(categoria__in=["Contabilidade", "Taxas Vindi/Yapay", "Telefone", "Mailchimp"])
+    )
+    recorrente_total = abs(
+        LancamentoBancario.objects.filter(
+            tipo="despesa", data__year=ano, data__month__lte=mes_atual
+        ).filter(recorrente_filtro).aggregate(s=Sum("valor"))["s"] or Decimal("0")
+    )
+    media_desp = (recorrente_total / mes_atual) if mes_atual else Decimal("0")
+    rec_proj, desp_proj = [], []
+    for m in range(1, 13):
+        futuro = ano > hoje.year or (ano == hoje.year and m > mes_atual)
+        rec_proj.append(vindi_prev[m] if futuro else rec[m])
+        desp_proj.append(media_desp if futuro else desp[m])
+    result_proj = [rec_proj[i] - desp_proj[i] for i in range(12)]
+    tot_rec_proj, tot_desp_proj = sum(rec_proj), sum(desp_proj)
+    rows_proj = [
+        {"label": "Receitas", "valores": rec_proj, "total": tot_rec_proj, "classe": "val-pos"},
+        {"label": "Despesas", "valores": desp_proj, "total": tot_desp_proj, "classe": "val-neg"},
+        {"label": "Total (resultado)", "valores": result_proj, "total": tot_rec_proj - tot_desp_proj, "classe": "col-total"},
+    ]
+    saldo_proj_list, acum = [], saldo_inicial
+    for i in range(12):
+        acum += rec_proj[i] - desp_proj[i]
+        saldo_proj_list.append(acum)
+    rows_proj.append({"label": "Saldo projetado", "valores": saldo_proj_list,
+                      "total": saldo_inicial + tot_rec_proj - tot_desp_proj, "classe": "col-total"})
+
+    contexto = contexto_base(
+        "financeiro-balanco", ano=ano, anos=_anos_banco(), meses=MESES, rows=rows,
+        saldo_inicial=saldo_inicial, total_rec=tot_rec, total_desp=tot_desp,
+        saldo_atual=saldo_inicial + tot_rec - tot_desp,
+        rows_proj=rows_proj, mes_atual_nome=MESES[mes_atual - 1],
+        saldo_fim_ano=saldo_inicial + tot_rec_proj - tot_desp_proj,
+    )
+    return render(request, "financeiro/balanco.html", contexto)
 
 
 @login_required

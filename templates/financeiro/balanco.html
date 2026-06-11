@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Balanço — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="ano" onchange="this.form.submit()">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ saldo_atual|floatformat:2 }}</span><span class="chip-lbl">Saldo atual na conta</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ total_rec|floatformat:2 }}</span><span class="chip-lbl">Receitas em {{ ano }}</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ total_desp|floatformat:2 }}</span><span class="chip-lbl">Despesas em {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ saldo_inicial|floatformat:2 }}</span><span class="chip-lbl">Saldo inicial ({{ ano }})</span></div>
+</div>
+
+<div class="cartao tabela-wrap">
+  <div class="cartao-topo">
+    <span class="contador">{{ ano }} — mês a mês</span>
+    <span class="sync-info">Saldo na conta = saldo inicial + receitas − despesas (do extrato)</span>
+  </div>
+  <table class="tabela tabela-pivot">
+    <thead>
+      <tr><th></th>{% for m in meses %}<th>{{ m }}</th>{% endfor %}<th>Total</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="nome-grupo">{{ row.label }}</td>
+        {% for v in row.valores %}<td class="{{ row.classe }}">{% if v %}{{ v|floatformat:2 }}{% else %}·{% endif %}</td>{% endfor %}
+        <td class="col-total">{{ row.total|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-graph-up-arrow"></i> Projeção do ano (realizado + previsto)</h2>
+<div class="cartao tabela-wrap">
+  <div class="cartao-topo">
+    <span class="contador">Saldo projetado p/ fim de {{ ano }}: <strong>R$ {{ saldo_fim_ano|floatformat:2 }}</strong></span>
+    <span class="sync-info">Realizado até {{ mes_atual_nome }} · depois = previsto</span>
+  </div>
+  <table class="tabela tabela-pivot">
+    <thead><tr><th></th>{% for m in meses %}<th>{{ m }}</th>{% endfor %}<th>Total</th></tr></thead>
+    <tbody>
+      {% for row in rows_proj %}
+      <tr>
+        <td class="nome-grupo">{{ row.label }}</td>
+        {% for v in row.valores %}<td class="{{ row.classe }}">{% if v %}{{ v|floatformat:2 }}{% else %}·{% endif %}</td>{% endfor %}
+        <td class="col-total">{{ row.total|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="sync-info" style="margin-top:12px; color:var(--texto-suave); font-size:13px; line-height:1.6;">
+  📌 Meses até <strong>{{ mes_atual_nome }}</strong> = realizado (extrato). Depois: <strong>receita</strong> = previsão da Vindi (filiações) e <strong>despesa</strong> = média das despesas recorrentes (folha + gerais). Torneios futuros não entram (cada evento se paga). Me mande as despesas previstas reais e fica certeira.
+</p>
+{% endblock %}
