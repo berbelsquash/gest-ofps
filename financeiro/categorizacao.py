@@ -60,7 +60,7 @@ REGRAS_DESPESA = [
     (["CONFEDERACAO BRASILEIRA", "CBS"], "Despesas gerais", "Taxa Confederação (CBS)", ""),
     (["VENTURA"], "Despesas gerais", "Contabilidade", ""),
     (["SIOUX"], "Despesas gerais", "Tecnologia / Site", ""),
-    (["SQUASH WALL"], "Despesas gerais", "Squash Wall", ""),
+    (["SQUASH WALL"], "Despesas gerais", "Aluguel (sede e quadra)", ""),
 ]
 
 # Regras de RECEITA por nome: (fragmentos, grupo, categoria, evento)
@@ -103,9 +103,13 @@ def classificar(descricao, razao, valor):
             if abs(valor) == 4000:
                 return ("despesa", "Folha", "Squash Talks", "")
             return ("despesa", "Torneios", "Squash Talks (evento)", "")
-        if _contem(alvo, ["VINICIUS TORRES BERBEL", "DURAN COMUNICAC"]):
+        if "VINICIUS TORRES BERBEL" in alvo:
             if abs(valor) == 4000:
-                return ("despesa", "Folha", "Salários", "")
+                return ("despesa", "Folha", "Vinicius Berbel", "")
+            return ("despesa", "Torneios", "Produção e comunicação", "")
+        if "DURAN COMUNICAC" in alvo:
+            if abs(valor) == 4000:
+                return ("despesa", "Folha", "Aline Rocha", "")
             return ("despesa", "Torneios", "Produção e comunicação", "")
         for frags, grupo, cat, evento in REGRAS_DESPESA:
             if _contem(alvo, frags):

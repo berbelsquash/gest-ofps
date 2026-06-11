@@ -1,7 +1,11 @@
-"""Importa o extrato bancário (xlsx do Banco do Brasil) para o banco local.
+"""Importa o extrato bancário (xlsx do Banco do Brasil).
+
+- Popula LancamentoBancario (todas as linhas) para a conciliação.
+- Popula LancamentoFinanceiro (origem='extrato') de junho em diante, mapeado
+  nas categorias da FPS (a planilha cobre até maio).
 
 Ao reimportar, as classificações marcadas como "revisado manualmente" são
-preservadas (casadas pela assinatura da linha), para não perder o trabalho manual.
+preservadas (casadas pela assinatura da linha).
 """
 
 from collections import defaultdict
@@ -11,7 +15,11 @@ from decimal import Decimal
 import openpyxl
 
 from .categorizacao import classificar
-from .models import LancamentoBancario
+from .models import LancamentoBancario, LancamentoFinanceiro
+
+# A partir deste mês de 2026, o extrato passa a alimentar o ledger (até maio é a planilha).
+LEDGER_DESDE_MES = 6
+LEDGER_ANO = 2026
 
 
 def _data(texto):
@@ -20,6 +28,27 @@ def _data(texto):
 
 def _assinatura(data, valor, descricao, razao):
     return (str(data), str(valor), (descricao or "")[:80], (razao or "")[:80])
+
+
+def _alimentar_ledger_extrato(registros):
+    """Cria os lançamentos do ledger a partir do extrato, de junho em diante."""
+    LancamentoFinanceiro.objects.filter(origem="extrato").delete()
+    novos = []
+    for r in registros:
+        if r.data.year != LEDGER_ANO or r.data.month < LEDGER_DESDE_MES:
+            continue
+        grupo = r.grupo or "(a classificar)"
+        # Receitas que não são inscrições vão para o grupo "Receitas" (como na planilha).
+        if r.tipo == "receita" and grupo != "Inscrições":
+            grupo = "Receitas"
+        novos.append(LancamentoFinanceiro(
+            ano=r.data.year, mes=r.data.month, data=r.data, tipo=r.tipo,
+            grupo=grupo, categoria=r.categoria, evento=r.evento,
+            valor=abs(r.valor), descricao=(r.razao_social or r.descricao or "")[:255],
+            origem="extrato", pago=True,
+        ))
+    LancamentoFinanceiro.objects.bulk_create(novos, batch_size=500)
+    return len(novos)
 
 
 def importar_extrato(caminho, substituir=True):
@@ -72,4 +101,8 @@ def importar_extrato(caminho, substituir=True):
         LancamentoBancario.objects.all().delete()
 
     LancamentoBancario.objects.bulk_create(registros, batch_size=500)
+
+    # Alimenta o ledger unificado (junho+).
+    _alimentar_ledger_extrato(registros)
+
     return len(registros)

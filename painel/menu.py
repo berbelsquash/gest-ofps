@@ -1,13 +1,13 @@
 # Estrutura do menu lateral do painel.
 # Para adicionar, renomear ou remover itens, basta editar a lista MENU.
 # 'icone' usa as classes do Bootstrap Icons (https://icons.getbootstrap.com/).
+# Um grupo com "titulo" vazio aparece como item solto (sem cabeçalho).
 
 MENU = [
     {
-        "titulo": "Tarefas",
+        "titulo": "",
         "itens": [
-            {"slug": "tarefas-por-pessoa", "label": "Tarefas por pessoa", "icone": "bi-person-check"},
-            {"slug": "tarefas-gerais", "label": "Tarefas gerais", "icone": "bi-list-check"},
+            {"slug": "tarefas-por-pessoa", "label": "Tarefas", "icone": "bi-check2-square"},
         ],
     },
     {
@@ -30,19 +30,15 @@ MENU = [
         ],
     },
     {
-        "titulo": "Bases",
+        "titulo": "",
         "itens": [
-            {"slug": "bases-atletas", "label": "Atletas", "icone": "bi-people"},
-            {"slug": "bases-clubes", "label": "Clubes", "icone": "bi-buildings"},
-            {"slug": "bases-treinadores", "label": "Treinadores", "icone": "bi-person-video3"},
+            {"slug": "bases-atletas", "label": "Bases", "icone": "bi-people"},
         ],
     },
     {
-        "titulo": "Documentos",
+        "titulo": "",
         "itens": [
-            {"slug": "doc-oficiais", "label": "Oficiais", "icone": "bi-file-earmark-text"},
-            {"slug": "doc-fotos", "label": "Fotos", "icone": "bi-images"},
-            {"slug": "doc-declaracoes", "label": "Declarações", "icone": "bi-file-earmark-check"},
+            {"slug": "doc-oficiais", "label": "Documentos", "icone": "bi-folder"},
         ],
     },
 ]

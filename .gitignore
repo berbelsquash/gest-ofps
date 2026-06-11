@@ -7,6 +7,9 @@ env/
 db.sqlite3
 db.sqlite3-journal
 
+# Backups do banco (dados — nunca versionar)
+backups/
+
 # Variáveis de ambiente e segredos — NÃO subir
 .env
 

@@ -25,7 +25,7 @@
     <nav class="sidebar-nav">
       {% for grupo in menu %}
       <div class="nav-grupo">
-        <span class="nav-grupo-titulo">{{ grupo.titulo }}</span>
+        {% if grupo.titulo %}<span class="nav-grupo-titulo">{{ grupo.titulo }}</span>{% endif %}
         {% for item in grupo.itens %}
         <a class="nav-item{% if item.slug == slug_ativo %} ativo{% endif %}"
            href="{% url 'secao' slug=item.slug %}">
