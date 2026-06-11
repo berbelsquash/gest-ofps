@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Previsão & fechamento — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="ano" onchange="this.form.submit()">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ tot_rec|floatformat:2 }}</span><span class="chip-lbl">Receitas projetadas {{ ano }}</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ tot_desp|floatformat:2 }}</span><span class="chip-lbl">Despesas projetadas {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ fechamento|floatformat:2 }}</span><span class="chip-lbl">Fechamento projetado</span></div>
+</div>
+
+<div class="cartao tabela-wrap">
+  <div class="cartao-topo"><span class="contador">Mês a mês — {{ ano }}</span><span class="sync-info">Meses passados = realizado · meses futuros = previsto</span></div>
+  <table class="tabela tabela-pivot">
+    <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Tipo</th></tr></thead>
+    <tbody>
+      {% for l in linhas %}
+      <tr>
+        <td class="nome-grupo">{{ l.mes }}</td>
+        <td class="val-pos">{{ l.receita|floatformat:2 }}</td>
+        <td class="val-neg">{{ l.despesa|floatformat:2 }}</td>
+        <td class="col-total">{{ l.saldo|floatformat:2 }}</td>
+        <td>{% if l.futuro %}<span class="badge badge-tipo">previsto</span>{% else %}<span class="badge badge-ok">realizado</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="sync-info" style="margin-top:14px; color:var(--texto-suave); font-size:13px; line-height:1.7;">
+  📌 <strong>Como calculei (v1, vamos refinar):</strong> meses passados usam o <strong>realizado do extrato</strong>.
+  Meses futuros usam: <strong>receita = previsão da Vindi</strong> (filiações) e <strong>despesa = média mensal</strong>
+  realizada (R$ {{ media_desp|floatformat:2 }}/mês). Quando você me mandar as <strong>despesas previstas</strong>
+  (folha fixa, contratos, eventos planejados) e quiser somar a receita de inscrições futuras, eu troco a estimativa
+  pelos números reais.
+</p>
+{% endblock %}

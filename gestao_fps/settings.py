@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "contas",
     "painel",
     "assinaturas",
+    "financeiro",
 ]
 
 MIDDLEWARE = [

@@ -238,6 +238,19 @@ table.tabela tbody tr:hover td { background: #fafbfd; }
 .secao-titulo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; margin: 26px 0 12px; color: var(--texto); }
 .secao-titulo i { color: var(--accent); }
 
+/* --------------------------------------------------------------- Financeiro (pivô mês a mês) */
+.cartao.tabela-wrap { overflow-x: auto; }
+.total-destaque { font-size: 14px; color: var(--texto-suave); }
+.total-destaque strong { color: var(--texto); font-size: 17px; }
+table.tabela-pivot { font-size: 13px; white-space: nowrap; }
+table.tabela-pivot th, table.tabela-pivot td { text-align: right; padding: 10px 14px; }
+table.tabela-pivot th:first-child, table.tabela-pivot td.nome-grupo { text-align: left; }
+table.tabela-pivot td.nome-grupo { font-weight: 500; }
+table.tabela-pivot td.col-total, table.tabela-pivot tfoot th { font-weight: 700; color: var(--texto); }
+table.tabela-pivot tfoot th { background: #fafbfd; border-top: 2px solid var(--borda); }
+.val-pos { color: #0d6b4a; font-weight: 600; white-space: nowrap; }
+.val-neg { color: #c0392b; font-weight: 600; white-space: nowrap; }
+
 /* --------------------------------------------------------------- Responsivo */
 @media (max-width: 860px) { :root { --sidebar-larg: 224px; } }
 @media (max-width: 640px) {

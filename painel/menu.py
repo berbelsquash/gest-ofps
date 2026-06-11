@@ -13,9 +13,11 @@ MENU = [
     {
         "titulo": "Financeira",
         "itens": [
-            {"slug": "receitas-despesas", "label": "Receitas e despesas", "icone": "bi-cash-stack"},
-            {"slug": "balanco", "label": "Balanço", "icone": "bi-bar-chart"},
-            {"slug": "previsoes", "label": "Previsões", "icone": "bi-graph-up-arrow"},
+            {"slug": "financeiro-despesas", "label": "Despesas", "icone": "bi-arrow-down-circle"},
+            {"slug": "financeiro-receitas", "label": "Receitas", "icone": "bi-arrow-up-circle"},
+            {"slug": "financeiro-eventos", "label": "Por evento", "icone": "bi-calendar-event"},
+            {"slug": "financeiro-previsao", "label": "Previsão & fechamento", "icone": "bi-graph-up"},
+            {"slug": "financeiro-conciliacao", "label": "Conciliação Vindi", "icone": "bi-link-45deg"},
         ],
     },
     {
