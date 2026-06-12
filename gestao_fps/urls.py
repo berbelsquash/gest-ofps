@@ -29,6 +29,8 @@ urlpatterns = [
     path("s/financeiro-balanco/", financeiro_views.balanco, name="financeiro_balanco"),
     path("s/financeiro-previsao/", financeiro_views.previsao, name="financeiro_previsao"),
     path("s/financeiro-conciliacao/", financeiro_views.conciliacao, name="financeiro_conciliacao"),
+    path("financeiro/lancamento/<int:pk>/editar/", financeiro_views.editar_lancamento, name="editar_lancamento"),
+    path("financeiro/importar-extrato/", financeiro_views.importar_extrato_view, name="importar_extrato_view"),
     # Demais seções do menu (placeholder genérico).
     path("s/<slug:slug>/", painel_views.secao, name="secao"),
     # Login, logout e troca de senha (views prontas do Django).

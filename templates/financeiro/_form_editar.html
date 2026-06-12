@@ -1,0 +1,78 @@
+{% comment %}Modal de edição de lançamento — usado em Despesas e Receitas.{% endcomment %}
+<div class="modal-fundo" id="modal-editar" hidden>
+  <div class="modal-janela">
+    <div class="modal-cabecalho">
+      <strong><i class="bi bi-pencil-square"></i> Editar lançamento</strong>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <form method="post" id="form-editar" action="">
+      {% csrf_token %}
+      <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <div class="form-grade">
+        <label>Tipo
+          <select name="tipo" id="f-tipo">
+            <option value="despesa">Despesa</option>
+            <option value="receita">Receita</option>
+          </select>
+        </label>
+        <label>Valor (R$)
+          <input type="number" step="0.01" min="0" name="valor" id="f-valor" required>
+        </label>
+        <label>Data
+          <input type="date" name="data" id="f-data">
+        </label>
+        <label>Grupo
+          <select name="grupo" id="f-grupo">
+            <option value="">—</option>
+            {% for g in grupos_todos %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Categoria
+          <input type="text" name="categoria" id="f-categoria" placeholder="ex: Arbitragem">
+        </label>
+        <label>Evento
+          <input type="text" name="evento" id="f-evento" placeholder="ex: ECP">
+        </label>
+        <label class="col-2">Descrição (como no extrato)
+          <input type="text" name="razao_social" id="f-razao">
+        </label>
+        <label class="check-linha">
+          <input type="checkbox" name="revisado" id="f-revisado" value="1">
+          Marcar como revisado (preserva esta correção ao reimportar o extrato)
+        </label>
+      </div>
+      <div class="modal-rodape">
+        <button type="button" class="btn btn-claro" data-fechar>Cancelar</button>
+        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var modal = document.getElementById('modal-editar');
+  if (!modal) return;
+  var form = document.getElementById('form-editar');
+  function set(id, v) { document.getElementById(id).value = v || ''; }
+  function abrir(d) {
+    form.action = d.url;
+    set('f-tipo', d.tipo || 'despesa');
+    set('f-valor', d.valor);
+    set('f-data', d.data);
+    set('f-grupo', d.grupo);
+    set('f-categoria', d.categoria);
+    set('f-evento', d.evento);
+    set('f-razao', d.razao);
+    document.getElementById('f-revisado').checked = (d.revisado === '1');
+    modal.hidden = false;
+  }
+  function fechar() { modal.hidden = true; }
+  document.querySelectorAll('.btn-editar').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.preventDefault(); abrir(b.dataset); });
+  });
+  modal.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', fechar); });
+  modal.addEventListener('click', function (e) { if (e.target === modal) fechar(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fechar(); });
+})();
+</script>

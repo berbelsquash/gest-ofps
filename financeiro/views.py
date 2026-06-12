@@ -1,18 +1,22 @@
 import calendar
+import os
+import tempfile
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
-from django.db.models.functions import ExtractMonth
-from django.shortcuts import render
+from django.db.models.functions import Abs, ExtractMonth
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from assinaturas.models import AssinaturaVindi, PlanoVindi, RecebimentoVindi
 from painel.menu import contexto_base
 
-from .models import LancamentoBancario, LancamentoFinanceiro
+from .importacao import importar_extrato
+from .models import GRUPOS, LancamentoBancario, LancamentoFinanceiro, MESES_PT
 
 MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
          "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
@@ -91,25 +95,58 @@ def _pivot_extrato(qs):
     return linhas, totais, sum(totais)
 
 
-@login_required
-def despesas(request):
-    """Despesas mês a mês — direto do extrato (data e descrição como no banco)."""
+def _ordenar_det(qs, ordenar):
+    """Ordena os lançamentos por data ou por valor (maior/menor magnitude)."""
+    if ordenar == "maior":
+        return qs.annotate(_mag=Abs("valor")).order_by("-_mag", "-data")
+    if ordenar == "menor":
+        return qs.annotate(_mag=Abs("valor")).order_by("_mag", "-data")
+    return qs.order_by("data", "-id")
+
+
+def _pagina_extrato(request, tipo, template, slug):
+    """Página de Despesas/Receitas: números no topo + lançamentos do extrato."""
     ano = int(request.GET.get("ano") or 2026)
     grupo_sel = request.GET.get("grupo", "")
-    qs = LancamentoBancario.objects.filter(tipo="despesa", data__year=ano)
-    linhas, totais, total = _pivot_extrato(qs)
+    mes_sel = int(request.GET.get("mes") or 0)
+    ordenar = request.GET.get("ordenar", "data")
+    qs = LancamentoBancario.objects.filter(tipo=tipo, data__year=ano)
+    # Total por mês (valores absolutos).
+    mes_tot = {m: Decimal("0") for m in range(1, 13)}
+    for row in qs.annotate(m=ExtractMonth("data")).values("m").annotate(s=Sum("valor")):
+        if row["m"]:
+            mes_tot[row["m"]] = abs(row["s"] or Decimal("0"))
+    totais = [mes_tot[m] for m in range(1, 13)]
+    total = sum(totais)
+    ativos = [m for m in range(1, 13) if mes_tot[m] > 0]
+    maior_m = max(ativos, key=lambda m: mes_tot[m]) if ativos else 0
+    # Lançamentos com filtros (mês, grupo) e ordenação.
     det = qs
+    if mes_sel:
+        det = det.filter(data__month=mes_sel)
     if grupo_sel:
         det = det.filter(grupo=grupo_sel)
-    det = list(det.order_by("data", "-id")[:600])
+    det = list(_ordenar_det(det, ordenar)[:600])
     for l in det:
         l.valor_abs = abs(l.valor)
+        l.valor_str = f"{abs(l.valor):.2f}"
+    grupos = sorted(set(qs.exclude(grupo="").values_list("grupo", flat=True)))
     contexto = contexto_base(
-        "financeiro-despesas", ano=ano, anos=_anos_banco(), meses=MESES,
-        linhas=linhas, totais=totais, total=total,
-        detalhe=det, grupos=[l["grupo"] for l in linhas], grupo_sel=grupo_sel,
+        slug, ano=ano, anos=_anos_banco(), meses=MESES,
+        total=total, totais=totais,
+        maior_valor=(mes_tot[maior_m] if maior_m else Decimal("0")),
+        maior_nome=(MESES_PT[maior_m - 1] if maior_m else "—"),
+        media=(total / len(ativos)) if ativos else Decimal("0"),
+        detalhe=det, grupos=grupos, grupo_sel=grupo_sel,
+        mes_sel=mes_sel, ordenar=ordenar, meses_filtro=list(enumerate(MESES_PT, 1)),
+        grupos_todos=[g[0] for g in GRUPOS],
     )
-    return render(request, "financeiro/despesas.html", contexto)
+    return render(request, template, contexto)
+
+
+@login_required
+def despesas(request):
+    return _pagina_extrato(request, "despesa", "financeiro/despesas.html", "financeiro-despesas")
 
 
 SALDO_INICIAL_2026 = Decimal("3875.03")  # saldo da conta em 31/12/2025 (do extrato)
@@ -117,21 +154,84 @@ SALDO_INICIAL_2026 = Decimal("3875.03")  # saldo da conta em 31/12/2025 (do extr
 
 @login_required
 def receitas(request):
-    """Receitas mês a mês — direto do extrato (data e descrição como no banco)."""
-    ano = int(request.GET.get("ano") or 2026)
-    grupo_sel = request.GET.get("grupo", "")
-    qs = LancamentoBancario.objects.filter(tipo="receita", data__year=ano)
-    linhas, totais, total = _pivot_extrato(qs)
-    det = qs
-    if grupo_sel:
-        det = det.filter(grupo=grupo_sel)
-    det = list(det.order_by("data", "-id")[:600])
-    contexto = contexto_base(
-        "financeiro-receitas", ano=ano, anos=_anos_banco(), meses=MESES,
-        linhas=linhas, totais=totais, total=total,
-        detalhe=det, grupos=[l["grupo"] for l in linhas], grupo_sel=grupo_sel,
-    )
-    return render(request, "financeiro/receitas.html", contexto)
+    return _pagina_extrato(request, "receita", "financeiro/receitas.html", "financeiro-receitas")
+
+
+def _parse_valor(s):
+    """Lê um valor digitado (aceita vírgula ou ponto) e devolve Decimal positivo."""
+    s = (s or "").strip().replace("R$", "").replace(" ", "")
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return abs(Decimal(s))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+@login_required
+def editar_lancamento(request, pk):
+    """Salva a edição feita no modal das telas de Despesas/Receitas."""
+    obj = get_object_or_404(LancamentoBancario, pk=pk)
+    voltar = request.POST.get("voltar") or "/s/financeiro-despesas/"
+    if not voltar.startswith("/"):
+        voltar = "/s/financeiro-despesas/"
+    if request.method == "POST":
+        tipo = request.POST.get("tipo") or obj.tipo
+        valor = _parse_valor(request.POST.get("valor"))
+        if valor is not None:
+            obj.valor = valor if tipo == "receita" else -valor
+        obj.tipo = tipo
+        obj.grupo = request.POST.get("grupo", "").strip()
+        obj.categoria = request.POST.get("categoria", "").strip()
+        obj.evento = request.POST.get("evento", "").strip()
+        obj.razao_social = request.POST.get("razao_social", "").strip()
+        data_str = (request.POST.get("data") or "").strip()
+        if data_str:
+            try:
+                obj.data = date.fromisoformat(data_str)
+            except ValueError:
+                pass
+        obj.revisado = bool(request.POST.get("revisado"))
+        obj.classificado = True
+        obj.save()
+        messages.success(request, "Lançamento atualizado com sucesso.")
+    return redirect(voltar)
+
+
+@login_required
+def importar_extrato_view(request):
+    """Recebe o .xlsx do extrato enviado pelo usuário e reimporta os lançamentos."""
+    voltar = request.POST.get("voltar") or "/s/financeiro-despesas/"
+    if not voltar.startswith("/"):
+        voltar = "/s/financeiro-despesas/"
+    arquivo = request.FILES.get("arquivo")
+    if request.method == "POST" and arquivo:
+        if not arquivo.name.lower().endswith(".xlsx"):
+            messages.error(request, "Envie um arquivo .xlsx (extrato do Banco do Brasil).")
+            return redirect(voltar)
+        fd, caminho = tempfile.mkstemp(suffix=".xlsx")
+        try:
+            with os.fdopen(fd, "wb") as destino:
+                for chunk in arquivo.chunks():
+                    destino.write(chunk)
+            n = importar_extrato(caminho)
+            messages.success(
+                request,
+                f"Extrato importado: {n} lançamentos. As correções marcadas como "
+                "'revisado' foram preservadas.",
+            )
+        except Exception as erro:
+            messages.error(request, f"Não consegui ler esse extrato: {erro}")
+        finally:
+            try:
+                os.remove(caminho)
+            except OSError:
+                pass
+    else:
+        messages.error(request, "Selecione um arquivo .xlsx para importar.")
+    return redirect(voltar)
 
 
 @login_required

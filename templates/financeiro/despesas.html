@@ -9,50 +9,94 @@
       {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
     </select>
   </form>
-  <span class="total-destaque">Total de despesas em {{ ano }}: <strong>R$ {{ total|floatformat:2 }}</strong></span>
 </div>
 
-<h2 class="secao-titulo"><i class="bi bi-grid-3x3-gap"></i> Por grupo — mês a mês</h2>
+<div class="resumo-chips">
+  <div class="chip chip-alerta">
+    <span class="chip-num">R$ {{ total|floatformat:2 }}</span>
+    <span class="chip-lbl">Total de despesas em {{ ano }}</span>
+  </div>
+  <div class="chip">
+    <span class="chip-num">R$ {{ maior_valor|floatformat:2 }}</span>
+    <span class="chip-lbl">Maior mês — {{ maior_nome }}</span>
+  </div>
+  <div class="chip">
+    <span class="chip-num">R$ {{ media|floatformat:2 }}</span>
+    <span class="chip-lbl">Média mensal</span>
+  </div>
+</div>
+
 <div class="cartao tabela-wrap">
-  <table class="tabela tabela-pivot">
-    <thead><tr><th>Grupo</th>{% for m in meses %}<th>{{ m }}</th>{% endfor %}<th>Total</th></tr></thead>
+  <table class="tabela tabela-pivot tabela-grad">
+    <thead><tr><th>Despesas</th>{% for m in meses %}<th>{{ m }}</th>{% endfor %}<th>Total</th></tr></thead>
     <tbody>
-      {% for l in linhas %}
       <tr>
-        <td class="nome-grupo">{{ l.grupo }}</td>
-        {% for v in l.meses %}<td>{% if v %}{{ v|floatformat:2 }}{% else %}·{% endif %}</td>{% endfor %}
-        <td class="col-total">{{ l.total|floatformat:2 }}</td>
+        <td class="nome-grupo">{{ ano }}</td>
+        {% for v in totais %}<td class="val-neg">{% if v %}{{ v|floatformat:2 }}{% else %}·{% endif %}</td>{% endfor %}
+        <td class="col-total">{{ total|floatformat:2 }}</td>
       </tr>
-      {% endfor %}
     </tbody>
-    <tfoot><tr><th>Total</th>{% for t in totais %}<th>{{ t|floatformat:2 }}</th>{% endfor %}<th>{{ total|floatformat:2 }}</th></tr></tfoot>
   </table>
 </div>
 
 <h2 class="secao-titulo"><i class="bi bi-list-ul"></i> Lançamentos</h2>
 <div class="barra-acoes">
+  <form method="post" action="{% url 'importar_extrato_view' %}" enctype="multipart/form-data" class="form-importar">
+    {% csrf_token %}
+    <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+    <input type="file" name="arquivo" accept=".xlsx" required>
+    <button type="submit" class="btn btn-grad"><i class="bi bi-upload"></i> Importar extrato</button>
+  </form>
   <form method="get" class="filtros">
     <input type="hidden" name="ano" value="{{ ano }}">
+    <select name="mes" onchange="this.form.submit()">
+      <option value="">Todos os meses</option>
+      {% for num, nome in meses_filtro %}<option value="{{ num }}" {% if num == mes_sel %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+    </select>
     <select name="grupo" onchange="this.form.submit()">
       <option value="">Todos os grupos</option>
       {% for g in grupos %}<option value="{{ g }}" {% if g == grupo_sel %}selected{% endif %}>{{ g }}</option>{% endfor %}
     </select>
+    <select name="ordenar" onchange="this.form.submit()">
+      <option value="data" {% if ordenar == 'data' %}selected{% endif %}>Por data</option>
+      <option value="maior" {% if ordenar == 'maior' %}selected{% endif %}>Maior valor</option>
+      <option value="menor" {% if ordenar == 'menor' %}selected{% endif %}>Menor valor</option>
+    </select>
   </form>
 </div>
 <div class="cartao tabela-wrap">
-  <table class="tabela">
-    <thead><tr><th>Mês</th><th>Data</th><th>Categoria</th><th>Despesa (como no extrato)</th><th>Valor</th></tr></thead>
+  <table class="tabela tabela-grad">
+    <thead>
+      <tr>
+        <th>Mês</th><th>Data</th><th>Grupo</th><th>Categoria</th>
+        <th>Despesa (como no extrato)</th><th>Valor</th><th>Editar</th>
+      </tr>
+    </thead>
     <tbody>
       {% for l in detalhe %}
       <tr>
         <td>{{ l.data|date:"F"|capfirst }}</td>
         <td>{{ l.data|date:"d/m/Y" }}</td>
-        <td>{% if l.categoria %}<span class="badge badge-tipo">{{ l.categoria }}</span>{% else %}—{% endif %}</td>
-        <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:40 }}</td>
+        <td>{% if l.grupo %}<span class="badge badge-grupo">{{ l.grupo }}</span>{% else %}—{% endif %}</td>
+        <td>{% if l.categoria %}{{ l.categoria }}{% else %}—{% endif %}</td>
+        <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:42 }}</td>
         <td class="val-neg">R$ {{ l.valor_abs|floatformat:2 }}</td>
+        <td class="col-acao">
+          <a class="btn-editar" href="#" title="Editar esta despesa"
+             data-url="{% url 'editar_lancamento' l.id %}"
+             data-tipo="{{ l.tipo }}" data-valor="{{ l.valor_str }}"
+             data-data="{{ l.data|date:'Y-m-d' }}" data-grupo="{{ l.grupo }}"
+             data-categoria="{{ l.categoria }}" data-evento="{{ l.evento }}"
+             data-razao="{{ l.razao_social|default:l.descricao }}"
+             data-revisado="{% if l.revisado %}1{% else %}0{% endif %}"><i class="bi bi-pencil-square"></i></a>
+        </td>
       </tr>
+      {% empty %}
+      <tr><td colspan="7" class="vazio-aviso">Nenhuma despesa neste filtro.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+{% include 'financeiro/_form_editar.html' %}
 {% endblock %}
