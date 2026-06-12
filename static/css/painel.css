@@ -207,6 +207,11 @@ body.sem-sidebar .conteudo { padding: 0; }
   background: #eef0ff; color: var(--marca-ini);
 }
 .form-importar input[type="file"]::file-selector-button:hover { background: #e3e6ff; }
+.sel-evento { padding: 6px 9px; border: 1px solid var(--borda); border-radius: 8px; font-size: 13px; background: #fff; color: var(--texto); max-width: 240px; }
+.paginacao { display: flex; align-items: center; gap: 12px; }
+.link-evento { color: var(--marca-ini); font-weight: 600; }
+.link-evento:hover { text-decoration: underline; }
+.link-evento i { font-size: 11px; opacity: .55; }
 .btn {
   display: inline-flex; align-items: center; gap: 7px;
   border: none; border-radius: 9px; padding: 9px 15px;

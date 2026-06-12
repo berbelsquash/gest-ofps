@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ evento_sel }} — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <a class="btn btn-claro" href="{% url 'financeiro_eventos' %}?ano={{ ano }}"><i class="bi bi-arrow-left"></i> Voltar aos eventos</a>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-calendar-event"></i> {{ evento_sel }} — {{ ano }}</h2>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_rec|floatformat:2 }}</span><span class="chip-lbl">Receitas</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ total_desp|floatformat:2 }}</span><span class="chip-lbl">Despesas</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ saldo|floatformat:2 }}</span><span class="chip-lbl">Saldo</span></div>
+  <div class="chip"><span class="chip-num">{{ detalhe|length }}</span><span class="chip-lbl">Lançamentos</span></div>
+</div>
+
+<div class="cartao tabela-wrap">
+  <table class="tabela tabela-grad">
+    <thead>
+      <tr>
+        <th>Data</th><th>Tipo</th><th>Lançamento</th><th>Grupo</th>
+        <th>Categoria</th><th>Valor</th><th>Editar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in detalhe %}
+      <tr>
+        <td>{{ l.data|date:"d/m/Y" }}</td>
+        <td>{% if l.tipo == 'receita' %}<span class="badge badge-ok">receita</span>{% else %}<span class="badge badge-atraso">despesa</span>{% endif %}</td>
+        <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:40 }}</td>
+        <td>{% if l.grupo %}<span class="badge badge-grupo">{{ l.grupo }}</span>{% else %}—{% endif %}</td>
+        <td>{{ l.categoria|default:"—" }}</td>
+        <td class="{% if l.tipo == 'receita' %}val-pos{% else %}val-neg{% endif %}">R$ {{ l.valor_abs|floatformat:2 }}</td>
+        <td class="col-acao">
+          <a class="btn-editar" href="#" title="Editar este lançamento"
+             data-url="{% url 'editar_lancamento' l.id %}"
+             data-tipo="{{ l.tipo }}" data-valor="{{ l.valor_str }}"
+             data-data="{{ l.data|date:'Y-m-d' }}" data-grupo="{{ l.grupo }}"
+             data-categoria="{{ l.categoria }}" data-evento="{{ l.evento }}"
+             data-razao="{{ l.razao_social|default:l.descricao }}"
+             data-revisado="{% if l.revisado %}1{% else %}0{% endif %}"><i class="bi bi-pencil-square"></i></a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="vazio-aviso">Nenhum lançamento neste evento.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include 'financeiro/_form_editar.html' %}
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Revisar eventos — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<p class="sync-info" style="margin:0 0 16px; color:var(--texto-suave); line-height:1.6;">
+  Sugeri um evento para cada lançamento <strong>sem evento</strong> — despesas de torneio pela
+  <strong>data</strong>, inscrições pelo <strong>valor + data</strong>. Confira, ajuste o que quiser
+  e clique em <strong>Salvar</strong>. Nada é aplicado sem você confirmar.
+</p>
+
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="" {% if tipo_f == '' %}selected{% endif %}>Despesas e receitas</option>
+      <option value="despesa" {% if tipo_f == 'despesa' %}selected{% endif %}>Só despesas</option>
+      <option value="receita" {% if tipo_f == 'receita' %}selected{% endif %}>Só receitas (inscrições)</option>
+    </select>
+    <select name="sug" onchange="this.form.submit()">
+      <option value="1" {% if so_sug == '1' %}selected{% endif %}>Só com sugestão</option>
+      <option value="0" {% if so_sug == '0' %}selected{% endif %}>Mostrar todos sem evento</option>
+    </select>
+  </form>
+  <span class="total-destaque">{{ total }} lançamento(s) na fila</span>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="qs" value="{{ qs_str }}">
+  <div class="cartao tabela-wrap">
+    <table class="tabela tabela-grad">
+      <thead>
+        <tr>
+          <th>Data</th><th>Tipo</th><th>Lançamento</th><th>Valor</th>
+          <th>Grupo</th><th>Por quê</th><th>Evento</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in page %}
+        <tr>
+          <td>{{ l.data|date:"d/m/Y" }}</td>
+          <td>{% if l.tipo == 'receita' %}<span class="badge badge-ok">receita</span>{% else %}<span class="badge badge-atraso">despesa</span>{% endif %}</td>
+          <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:40 }}</td>
+          <td class="{% if l.tipo == 'receita' %}val-pos{% else %}val-neg{% endif %}">R$ {{ l.valor_abs|floatformat:2 }}</td>
+          <td>{% if l.grupo %}<span class="badge badge-grupo">{{ l.grupo }}</span>{% else %}—{% endif %}</td>
+          <td style="font-size:12px; color:var(--texto-suave);">{{ l.motivo|default:"—" }}</td>
+          <td>
+            <input type="hidden" name="id" value="{{ l.id }}">
+            <select name="evento_{{ l.id }}" class="sel-evento">
+              <option value="">(nenhum)</option>
+              {% for ev in eventos %}<option value="{{ ev }}" {% if ev == l.sugestao %}selected{% endif %}>{{ ev }}</option>{% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="vazio-aviso">Nada na fila com esse filtro. 🎉</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page %}
+  <div class="barra-acoes" style="margin-top:16px;">
+    <div class="paginacao">
+      {% if page.has_previous %}<a class="btn btn-claro" href="?{{ qs_str }}&page={{ page.previous_page_number }}">‹ Anterior</a>{% endif %}
+      <span class="sync-info">Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-claro" href="?{{ qs_str }}&page={{ page.next_page_number }}">Próxima ›</a>{% endif %}
+    </div>
+    <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Salvar esta página</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

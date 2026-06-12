@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Abs, ExtractMonth
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,6 +16,7 @@ from django.utils import timezone
 from assinaturas.models import AssinaturaVindi, PlanoVindi, RecebimentoVindi
 from painel.menu import contexto_base
 
+from .eventos import NOMES_EVENTOS, sugerir_evento
 from .importacao import importar_extrato
 from .models import GRUPOS, LancamentoBancario, LancamentoFinanceiro, MESES_PT
 
@@ -315,8 +317,28 @@ def balanco(request):
 
 @login_required
 def por_evento(request):
+    """Resultado por evento — direto do extrato (lançamentos vinculados a cada torneio)."""
     ano = int(request.GET.get("ano") or 2026)
-    dados = (LancamentoFinanceiro.objects.filter(ano=ano).exclude(evento="")
+    evento_sel = request.GET.get("evento", "")
+    if evento_sel:
+        lancs = list(LancamentoBancario.objects.filter(
+            data__year=ano, evento=evento_sel).order_by("data", "-id"))
+        rec = desp = Decimal("0")
+        for l in lancs:
+            l.valor_abs = abs(l.valor)
+            l.valor_str = f"{l.valor_abs:.2f}"
+            if l.tipo == "receita":
+                rec += l.valor_abs
+            else:
+                desp += l.valor_abs
+        contexto = contexto_base(
+            "financeiro-eventos", ano=ano, anos=_anos_banco(),
+            evento_sel=evento_sel, detalhe=lancs,
+            total_rec=rec, total_desp=desp, saldo=rec - desp,
+            grupos_todos=[g[0] for g in GRUPOS],
+        )
+        return render(request, "financeiro/evento_detalhe.html", contexto)
+    dados = (LancamentoBancario.objects.filter(data__year=ano).exclude(evento="")
              .values("evento").annotate(
                  receita=Sum("valor", filter=Q(tipo="receita")),
                  despesa=Sum("valor", filter=Q(tipo="despesa")),
@@ -324,11 +346,54 @@ def por_evento(request):
     eventos = []
     for row in dados:
         rec = row["receita"] or Decimal("0")
-        desp = row["despesa"] or Decimal("0")
+        desp = abs(row["despesa"] or Decimal("0"))
         eventos.append({"evento": row["evento"], "receita": rec, "despesa": desp,
                         "saldo": rec - desp, "n": row["n"]})
-    contexto = contexto_base("financeiro-eventos", ano=ano, anos=_anos_fin(), eventos=eventos)
+    eventos.sort(key=lambda e: -(e["receita"] + e["despesa"]))
+    contexto = contexto_base("financeiro-eventos", ano=ano, anos=_anos_banco(), eventos=eventos)
     return render(request, "financeiro/eventos.html", contexto)
+
+
+@login_required
+def revisar_eventos(request):
+    """Propõe (e aplica após revisão) o evento de cada lançamento do extrato."""
+    if request.method == "POST":
+        n = 0
+        for pk in request.POST.getlist("id"):
+            novo = (request.POST.get(f"evento_{pk}") or "").strip()
+            obj = LancamentoBancario.objects.filter(pk=pk).first()
+            if obj and novo != (obj.evento or ""):
+                obj.evento = novo
+                obj.revisado = True
+                obj.save(update_fields=["evento", "revisado"])
+                n += 1
+        messages.success(request, f"{n} lançamento(s) vinculados a eventos.")
+        qs_str = request.POST.get("qs", "")
+        return redirect("/s/financeiro-eventos-revisar/" + (f"?{qs_str}" if qs_str else ""))
+
+    tipo_f = request.GET.get("tipo", "")
+    so_sug = request.GET.get("sug", "1")
+    qs = LancamentoBancario.objects.filter(data__year=2026, evento="")
+    if tipo_f in ("despesa", "receita"):
+        qs = qs.filter(tipo=tipo_f)
+    linhas = []
+    for l in qs.order_by("data", "-id"):
+        sug, motivo = sugerir_evento(l.data, l.valor, l.tipo, l.grupo, l.categoria)
+        if so_sug == "1" and not sug:
+            continue
+        l.valor_abs = abs(l.valor)
+        l.sugestao = sug or ""
+        l.motivo = motivo or ""
+        linhas.append(l)
+    paginator = Paginator(linhas, 120)
+    page = paginator.get_page(request.GET.get("page") or 1)
+    params = request.GET.copy()
+    params.pop("page", None)
+    contexto = contexto_base(
+        "financeiro-eventos-revisar", eventos=NOMES_EVENTOS, page=page,
+        tipo_f=tipo_f, so_sug=so_sug, qs_str=params.urlencode(), total=len(linhas),
+    )
+    return render(request, "financeiro/revisar_eventos.html", contexto)
 
 
 # =========================================================================

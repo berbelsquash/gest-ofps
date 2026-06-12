@@ -18,7 +18,7 @@
     <tbody>
       {% for e in eventos %}
       <tr>
-        <td><strong>{{ e.evento }}</strong></td>
+        <td><a class="link-evento" href="?ano={{ ano }}&evento={{ e.evento|urlencode }}">{{ e.evento }} <i class="bi bi-chevron-right"></i></a></td>
         <td class="val-pos">R$ {{ e.receita|floatformat:2 }}</td>
         <td class="val-neg">R$ {{ e.despesa|floatformat:2 }}</td>
         <td><strong>R$ {{ e.saldo|floatformat:2 }}</strong></td>
@@ -31,7 +31,7 @@
 </div>
 
 <p class="sync-info" style="margin-top:14px; color:var(--texto-suave); font-size:13px;">
-  Os lançamentos entram aqui automaticamente quando a regra de categorização identifica o torneio
-  (ex.: estrutura do Ilhabela, repasses de promotores). Conforme refinamos as regras, mais eventos aparecem.
+  Resultado direto do extrato: receitas e despesas de cada torneio, conforme os lançamentos
+  vinculados ao evento (pelos comprovantes ou pela tela "Revisar eventos").
 </p>
 {% endblock %}

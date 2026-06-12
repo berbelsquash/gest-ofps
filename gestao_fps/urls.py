@@ -26,6 +26,7 @@ urlpatterns = [
     path("s/financeiro-despesas/", financeiro_views.despesas, name="financeiro_despesas"),
     path("s/financeiro-receitas/", financeiro_views.receitas, name="financeiro_receitas"),
     path("s/financeiro-eventos/", financeiro_views.por_evento, name="financeiro_eventos"),
+    path("s/financeiro-eventos-revisar/", financeiro_views.revisar_eventos, name="financeiro_eventos_revisar"),
     path("s/financeiro-balanco/", financeiro_views.balanco, name="financeiro_balanco"),
     path("s/financeiro-previsao/", financeiro_views.previsao, name="financeiro_previsao"),
     path("s/financeiro-conciliacao/", financeiro_views.conciliacao, name="financeiro_conciliacao"),
