@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{% static 'css/painel.css' %}?v=12">
+  <link rel="stylesheet" href="{% static 'css/painel.css' %}?v=21">
 </head>
 <body class="{% if user.is_authenticated %}com-sidebar{% else %}sem-sidebar{% endif %}">
   {% if user.is_authenticated %}
@@ -24,14 +24,20 @@
 
     <nav class="sidebar-nav">
       {% for grupo in menu %}
-      <div class="nav-grupo">
-        {% if grupo.titulo %}<span class="nav-grupo-titulo">{{ grupo.titulo }}</span>{% endif %}
-        {% for item in grupo.itens %}
-        <a class="nav-item{% if item.slug == slug_ativo %} ativo{% endif %}"
-           href="{% url 'secao' slug=item.slug %}">
-          <i class="bi {{ item.icone }}"></i><span>{{ item.label }}</span>
-        </a>
-        {% endfor %}
+      <div class="nav-grupo{% if grupo.titulo %} tem-titulo{% endif %}">
+        {% if grupo.titulo %}
+        <button type="button" class="nav-grupo-titulo">
+          <span>{{ grupo.titulo }}</span><i class="bi bi-chevron-down chevron"></i>
+        </button>
+        {% endif %}
+        <div class="nav-grupo-itens">
+          {% for item in grupo.itens %}
+          <a class="nav-item{% if item.slug == slug_ativo %} ativo{% endif %}"
+             href="{% url 'secao' slug=item.slug %}">
+            {% if not grupo.titulo %}<i class="bi {{ item.icone }}"></i>{% endif %}<span>{{ item.label }}</span>
+          </a>
+          {% endfor %}
+        </div>
       </div>
       {% endfor %}
     </nav>
@@ -50,9 +56,8 @@
   <div class="area-principal">
     {% if user.is_authenticated %}
     <header class="topbar">
-      <span class="barra-grad"></span>
       <div class="topbar-textos">
-        <span class="grupo-atual">{{ grupo_atual }}</span>
+        {% if grupo_atual %}<span class="grupo-atual">{{ grupo_atual }}</span>{% endif %}
         <span class="titulo-atual">{{ titulo }}</span>
       </div>
     </header>
@@ -68,5 +73,14 @@
       {% block conteudo %}{% endblock %}
     </main>
   </div>
+  <script>
+    (function () {
+      document.querySelectorAll('.nav-grupo-titulo').forEach(function (b) {
+        b.addEventListener('click', function () { b.closest('.nav-grupo').classList.toggle('aberto'); });
+      });
+      var ativo = document.querySelector('.nav-item.ativo');
+      if (ativo) { var g = ativo.closest('.nav-grupo'); if (g) g.classList.add('aberto'); }
+    })();
+  </script>
 </body>
 </html>

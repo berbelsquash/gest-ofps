@@ -9,6 +9,12 @@
       {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
     </select>
   </form>
+  <form method="post" action="{% url 'importar_extrato_view' %}" enctype="multipart/form-data" class="form-importar">
+    {% csrf_token %}
+    <input type="hidden" name="voltar" value="/s/financeiro-balanco/">
+    <input type="file" name="arquivo" accept=".xlsx" required>
+    <button type="submit" class="btn btn-grad"><i class="bi bi-upload"></i> Importar extrato</button>
+  </form>
 </div>
 
 <div class="resumo-chips">
@@ -25,7 +31,7 @@
   </div>
   <table class="tabela tabela-pivot">
     <thead>
-      <tr><th></th>{% for m in meses %}<th>{{ m }}</th>{% endfor %}<th>Total</th></tr>
+      <tr><th></th>{% for m in meses %}<th><a class="th-mes" href="{% url 'financeiro_detalhado' %}?ano={{ ano }}&mes={{ forloop.counter }}" title="Ver lançamentos de {{ m }}">{{ m }}</a></th>{% endfor %}<th>Total</th></tr>
     </thead>
     <tbody>
       {% for row in rows %}
@@ -60,6 +66,6 @@
 </div>
 
 <p class="sync-info" style="margin-top:12px; color:var(--texto-suave); font-size:13px; line-height:1.6;">
-  📌 Meses até <strong>{{ mes_atual_nome }}</strong> = realizado (extrato). Depois: <strong>receita</strong> = previsão da Vindi (filiações) e <strong>despesa</strong> = média das despesas recorrentes (folha + gerais). Torneios futuros não entram (cada evento se paga). Me mande as despesas previstas reais e fica certeira.
+  📌 Meses até <strong>{{ mes_atual_nome }}</strong> = realizado (extrato). Depois: <strong>receita</strong> = filiações previstas da Vindi + itens de receita, e <strong>despesa</strong> = itens cadastrados na <a href="{% url 'financeiro_previsao' %}">Previsão</a> (folha + operacionais). Torneios futuros não entram (cada evento se paga). Clique num mês para ver os lançamentos.
 </p>
 {% endblock %}

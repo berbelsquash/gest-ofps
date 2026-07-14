@@ -9,9 +9,26 @@
       {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
     </select>
   </form>
+  <div class="barra-acoes-dir">
+    <form method="get" class="filtros">
+      <input type="hidden" name="ano" value="{{ ano }}">
+      <select name="evento" onchange="this.form.submit()">
+        <option value="">Ir para um evento…</option>
+        {% for nome in nomes_eventos %}<option value="{{ nome }}">{{ nome }}</option>{% endfor %}
+      </select>
+    </form>
+    <a class="btn btn-grad" href="{% url 'financeiro_inscricoes' %}"><i class="bi bi-file-earmark-arrow-up"></i> Importar inscrições</a>
+  </div>
 </div>
 
 <h2 class="secao-titulo"><i class="bi bi-calendar-event"></i> Resultado por evento — {{ ano }}</h2>
+
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ tot_rec|floatformat:2 }}</span><span class="chip-lbl">Receitas dos eventos</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ tot_desp|floatformat:2 }}</span><span class="chip-lbl">Despesas dos eventos</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ saldo|floatformat:2 }}</span><span class="chip-lbl">Saldo dos eventos</span></div>
+  <div class="chip"><span class="chip-num">{{ eventos|length }}</span><span class="chip-lbl">Eventos</span></div>
+</div>
 <div class="cartao tabela-wrap">
   <table class="tabela">
     <thead><tr><th>Evento</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Lançamentos</th></tr></thead>

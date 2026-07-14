@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 GRUPOS = [
@@ -91,3 +93,85 @@ class LancamentoFinanceiro(models.Model):
     @property
     def mes_nome(self):
         return MESES_PT[self.mes - 1] if 1 <= self.mes <= 12 else str(self.mes)
+
+
+class ItemPrevisao(models.Model):
+    """Item recorrente ou pontual da previsão financeira (folha, despesas
+    operacionais, receitas manuais). A previsão de filiações (Vindi) vem das
+    assinaturas — não é cadastrada aqui."""
+
+    class Tipo(models.TextChoices):
+        RECEITA = "receita", "Receita"
+        DESPESA = "despesa", "Despesa"
+
+    class Recorrencia(models.TextChoices):
+        MENSAL = "mensal", "Todo mês"
+        ANUAL = "anual", "Uma vez por ano"
+        UNICO = "unico", "Único (mês específico)"
+
+    nome = models.CharField("nome", max_length=120)
+    tipo = models.CharField("tipo", max_length=10, choices=Tipo.choices, default=Tipo.DESPESA)
+    valor = models.DecimalField("valor (R$)", max_digits=12, decimal_places=2)
+    recorrencia = models.CharField(
+        "recorrência", max_length=10, choices=Recorrencia.choices, default=Recorrencia.MENSAL)
+    mes = models.PositiveSmallIntegerField(
+        "mês", null=True, blank=True,
+        help_text="Para anual/único: mês em que ocorre (1–12). Mensal: deixe em branco.")
+    categoria = models.CharField("categoria", max_length=80, blank=True)
+    ativo = models.BooleanField("ativo", default=True)
+    observacao = models.CharField("observação", max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "item de previsão"
+        verbose_name_plural = "itens de previsão"
+        ordering = ["tipo", "-valor"]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} · {self.nome} · R$ {self.valor}"
+
+    def valor_no_mes(self, m):
+        """Valor previsto deste item no mês m (1–12); 0 se não se aplica."""
+        if not self.ativo:
+            return Decimal("0")
+        if self.recorrencia == self.Recorrencia.MENSAL:
+            return self.valor
+        return self.valor if self.mes == m else Decimal("0")
+
+    @property
+    def periodo_nome(self):
+        if self.recorrencia == self.Recorrencia.MENSAL:
+            return "Todo mês"
+        if self.mes and 1 <= self.mes <= 12:
+            return MESES_PT[self.mes - 1]
+        return self.get_recorrencia_display()
+
+
+class Inscricao(models.Model):
+    """Inscrição de um atleta num evento (respostas do Google Forms).
+
+    Serve para: (1) conciliar o esperado do evento (soma das inscrições) com o
+    que está marcado no extrato; (2) guardar o link do comprovante por atleta;
+    (3) ser a base de atletas por evento. O pagamento em si continua no extrato
+    (LancamentoBancario) — aqui é o "quem se inscreveu e quanto deveria pagar"."""
+
+    evento = models.CharField("evento", max_length=120)
+    ano = models.PositiveSmallIntegerField("ano", default=2026)
+    nome = models.CharField("atleta", max_length=160)
+    email = models.CharField("e-mail", max_length=160, blank=True)
+    clube = models.CharField("clube/academia", max_length=160, blank=True)
+    treinador = models.CharField("treinador", max_length=160, blank=True)
+    categoria = models.CharField("categoria", max_length=80, blank=True)
+    filiado = models.CharField("filiado", max_length=20, blank=True)
+    valor = models.DecimalField("valor (R$)", max_digits=10, decimal_places=2, default=0)
+    comprovante_link = models.CharField("comprovante (link)", max_length=500, blank=True)
+    pacote = models.BooleanField("pagou via pacote", default=False)
+    data_inscricao = models.DateField("data da inscrição", null=True, blank=True)
+    importado_em = models.DateTimeField("importado em", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "inscrição"
+        verbose_name_plural = "inscrições"
+        ordering = ["evento", "nome"]
+
+    def __str__(self):
+        return f"{self.evento} · {self.nome} · R$ {self.valor}"

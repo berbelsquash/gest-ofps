@@ -2,8 +2,9 @@ import calendar
 import os
 import tempfile
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -16,9 +17,11 @@ from django.utils import timezone
 from assinaturas.models import AssinaturaVindi, PlanoVindi, RecebimentoVindi
 from painel.menu import contexto_base
 
-from .eventos import NOMES_EVENTOS, sugerir_evento
+from .eventos import EVENTOS, NOMES_EVENTOS, sugerir_evento
 from .importacao import importar_extrato
-from .models import GRUPOS, LancamentoBancario, LancamentoFinanceiro, MESES_PT
+from .inscricoes import preparar_lista_inscricoes
+from .models import (GRUPOS, Inscricao, ItemPrevisao, LancamentoBancario,
+                     LancamentoFinanceiro, MESES_PT)
 
 MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
          "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
@@ -141,7 +144,7 @@ def _pagina_extrato(request, tipo, template, slug):
         media=(total / len(ativos)) if ativos else Decimal("0"),
         detalhe=det, grupos=grupos, grupo_sel=grupo_sel,
         mes_sel=mes_sel, ordenar=ordenar, meses_filtro=list(enumerate(MESES_PT, 1)),
-        grupos_todos=[g[0] for g in GRUPOS],
+        grupos_todos=[g[0] for g in GRUPOS], ver=tipo,
     )
     return render(request, template, contexto)
 
@@ -157,6 +160,85 @@ SALDO_INICIAL_2026 = Decimal("3875.03")  # saldo da conta em 31/12/2025 (do extr
 @login_required
 def receitas(request):
     return _pagina_extrato(request, "receita", "financeiro/receitas.html", "financeiro-receitas")
+
+
+@login_required
+def receitas_despesas(request):
+    """Página combinada — alterna entre receitas e despesas pelo botão no topo."""
+    ver = request.GET.get("ver", "despesa")
+    if ver not in ("despesa", "receita"):
+        ver = "despesa"
+    return _pagina_extrato(request, ver, "financeiro/receitas_despesas.html", "financeiro-receitas-despesas")
+
+
+def _breakdown(qs):
+    """Agrupa um queryset por grupo -> categoria (valores absolutos), ordenado por total."""
+    g = defaultdict(lambda: defaultdict(Decimal))
+    tot = defaultdict(Decimal)
+    for row in qs.values("grupo", "categoria").annotate(s=Sum("valor")):
+        grupo = row["grupo"] or "(a classificar)"
+        cat = row["categoria"] or "(sem categoria)"
+        v = abs(row["s"] or Decimal("0"))
+        g[grupo][cat] += v
+        tot[grupo] += v
+    out = []
+    for grupo in sorted(g, key=lambda x: -tot[x]):
+        cats = [{"nome": c, "valor": v} for c, v in sorted(g[grupo].items(), key=lambda kv: -kv[1])]
+        out.append({"grupo": grupo, "total": tot[grupo], "categorias": cats})
+    return out
+
+
+@login_required
+def detalhado(request):
+    """Detalhado: gráfico mensal + cards do período + segmentação por categoria."""
+    ano = int(request.GET.get("ano") or 2026)
+    mes = request.GET.get("mes")
+    mes = int(mes) if (mes and mes.isdigit() and 1 <= int(mes) <= 12) else None
+    ver = request.GET.get("ver", "ambos")
+    if ver not in ("ambos", "receita", "despesa"):
+        ver = "ambos"
+
+    rec_mes = {m: Decimal("0") for m in range(1, 13)}
+    desp_mes = {m: Decimal("0") for m in range(1, 13)}
+    for row in (LancamentoBancario.objects.filter(data__year=ano)
+                .annotate(m=ExtractMonth("data")).values("m", "tipo").annotate(s=Sum("valor"))):
+        if row["m"]:
+            if row["tipo"] == "receita":
+                rec_mes[row["m"]] = row["s"] or Decimal("0")
+            else:
+                desp_mes[row["m"]] = abs(row["s"] or Decimal("0"))
+
+    meses_alvo = [mes] if mes else list(range(1, 13))
+    qs = LancamentoBancario.objects.filter(data__year=ano)
+    if mes:
+        qs = qs.filter(data__month=mes)
+
+    # Lista completa dos lançamentos do período (respeita o toggle e o filtro de grupo).
+    grupo_sel = request.GET.get("grupo", "")
+    det_qs = qs
+    if ver in ("receita", "despesa"):
+        det_qs = det_qs.filter(tipo=ver)
+    if grupo_sel:
+        det_qs = det_qs.filter(grupo=grupo_sel)
+    det = list(det_qs.order_by("-data", "-id"))
+    for l in det:
+        l.valor_abs = abs(l.valor)
+        l.valor_str = f"{abs(l.valor):.2f}"
+
+    contexto = contexto_base(
+        "financeiro-detalhado", ano=ano, anos=_anos_banco(), mes=mes, ver=ver,
+        rec_list=[float(rec_mes[m]) for m in range(1, 13)],
+        desp_list=[float(desp_mes[m]) for m in range(1, 13)],
+        tot_rec=sum(rec_mes[m] for m in meses_alvo),
+        tot_desp=sum(desp_mes[m] for m in meses_alvo),
+        periodo_nome=(f"{MESES_PT[mes - 1]} de {ano}" if mes else str(ano)),
+        breakdown_rec=_breakdown(qs.filter(tipo="receita")),
+        breakdown_desp=_breakdown(qs.filter(tipo="despesa")),
+        detalhe=det, grupo_sel=grupo_sel,
+        grupos=sorted(set(qs.exclude(grupo="").values_list("grupo", flat=True))),
+        grupos_todos=[g[0] for g in GRUPOS],
+    )
+    return render(request, "financeiro/detalhado.html", contexto)
 
 
 def _parse_valor(s):
@@ -270,27 +352,17 @@ def balanco(request):
                  "total": saldo_inicial + tot_rec - tot_desp, "classe": "col-total"})
 
     # --- Projeção do ano: realizado (até o mês atual) + previsto (depois) ---
+    # O previsto usa os itens da aba Previsão (folha, operacionais, receitas
+    # manuais) + as filiações da Vindi, ficando consistente com aquela tela.
     hoje = timezone.localdate()
-    mes_atual = hoje.month if ano == hoje.year else 12
+    mes_atual = hoje.month if ano == hoje.year else (12 if ano < hoje.year else 0)
     vindi_prev = _vindi_previsto(ano, hoje)
-    # Despesa futura prevista = média mensal SÓ das recorrentes definidas pela FPS:
-    # folha (sem Aline, que saiu) + contabilidade + taxas Vindi/Yapay + telefone (Claro) + Mailchimp.
-    # Squash Wall (aluguel só no início do ano) e torneios NÃO entram na recorrência.
-    recorrente_filtro = (
-        (Q(grupo="Folha") & ~Q(categoria="Aline Rocha"))
-        | Q(categoria__in=["Contabilidade", "Taxas Vindi/Yapay", "Telefone", "Mailchimp"])
-    )
-    recorrente_total = abs(
-        LancamentoBancario.objects.filter(
-            tipo="despesa", data__year=ano, data__month__lte=mes_atual
-        ).filter(recorrente_filtro).aggregate(s=Sum("valor"))["s"] or Decimal("0")
-    )
-    media_desp = (recorrente_total / mes_atual) if mes_atual else Decimal("0")
+    rec_itens, desp_itens = _itens_previstos()
     rec_proj, desp_proj = [], []
     for m in range(1, 13):
         futuro = ano > hoje.year or (ano == hoje.year and m > mes_atual)
-        rec_proj.append(vindi_prev[m] if futuro else rec[m])
-        desp_proj.append(media_desp if futuro else desp[m])
+        rec_proj.append((vindi_prev[m] + rec_itens[m]) if futuro else rec[m])
+        desp_proj.append(desp_itens[m] if futuro else desp[m])
     result_proj = [rec_proj[i] - desp_proj[i] for i in range(12)]
     tot_rec_proj, tot_desp_proj = sum(rec_proj), sum(desp_proj)
     rows_proj = [
@@ -331,11 +403,18 @@ def por_evento(request):
                 rec += l.valor_abs
             else:
                 desp += l.valor_abs
+        # Conciliação com o roster de inscrições (se houver planilha importada)
+        inscricoes = list(Inscricao.objects.filter(evento=evento_sel))
+        esperado = sum((i.valor for i in inscricoes), Decimal("0"))
+        n_pacote = sum(1 for i in inscricoes if i.pacote)
+        n_comprov = sum(1 for i in inscricoes if i.comprovante_link)
         contexto = contexto_base(
             "financeiro-eventos", ano=ano, anos=_anos_banco(),
             evento_sel=evento_sel, detalhe=lancs,
             total_rec=rec, total_desp=desp, saldo=rec - desp,
             grupos_todos=[g[0] for g in GRUPOS],
+            inscricoes=inscricoes, esperado=esperado, gap=esperado - rec,
+            n_insc=len(inscricoes), n_pacote=n_pacote, n_comprov=n_comprov,
         )
         return render(request, "financeiro/evento_detalhe.html", contexto)
     dados = (LancamentoBancario.objects.filter(data__year=ano).exclude(evento="")
@@ -350,7 +429,13 @@ def por_evento(request):
         eventos.append({"evento": row["evento"], "receita": rec, "despesa": desp,
                         "saldo": rec - desp, "n": row["n"]})
     eventos.sort(key=lambda e: -(e["receita"] + e["despesa"]))
-    contexto = contexto_base("financeiro-eventos", ano=ano, anos=_anos_banco(), eventos=eventos)
+    tot_rec = sum((e["receita"] for e in eventos), Decimal("0"))
+    tot_desp = sum((e["despesa"] for e in eventos), Decimal("0"))
+    contexto = contexto_base(
+        "financeiro-eventos", ano=ano, anos=_anos_banco(), eventos=eventos,
+        nomes_eventos=[e["evento"] for e in sorted(eventos, key=lambda e: e["evento"])],
+        tot_rec=tot_rec, tot_desp=tot_desp, saldo=tot_rec - tot_desp,
+    )
     return render(request, "financeiro/eventos.html", contexto)
 
 
@@ -396,6 +481,144 @@ def revisar_eventos(request):
     return render(request, "financeiro/revisar_eventos.html", contexto)
 
 
+@login_required
+def importar_inscricoes(request):
+    """Sobe a planilha de inscrições (Google Forms) de um evento e guarda o
+    roster (atleta, categoria, filiado, valor, link do comprovante). A
+    conciliação esperado × marcado aparece na tela do evento."""
+    if request.method == "POST":
+        evento = (request.POST.get("evento") or "").strip()
+        arquivo = request.FILES.get("arquivo")
+        if not evento:
+            messages.error(request, "Escolha o evento da planilha.")
+        elif not arquivo:
+            messages.error(request, "Selecione o arquivo .xlsx das respostas.")
+        elif not arquivo.name.lower().endswith(".xlsx"):
+            messages.error(request, "Envie um arquivo .xlsx (respostas do Google Forms).")
+        else:
+            fd, caminho = tempfile.mkstemp(suffix=".xlsx")
+            try:
+                with os.fdopen(fd, "wb") as destino:
+                    for chunk in arquivo.chunks():
+                        destino.write(chunk)
+                dados = preparar_lista_inscricoes(caminho)
+                linhas = dados["linhas"]
+                # reimportar substitui o roster do evento (idempotente)
+                Inscricao.objects.filter(evento=evento).delete()
+                Inscricao.objects.bulk_create([
+                    Inscricao(
+                        evento=evento, ano=(l["data"].year if l["data"] else 2026),
+                        nome=l["nome"][:160], email=l["email"][:160], clube=l["clube"][:160],
+                        treinador=l["treinador"][:160], categoria=l["categoria"][:80],
+                        filiado=l["filiado"][:20], valor=l["valor"],
+                        comprovante_link=l["comprovante"][:500], pacote=l["pacote"],
+                        data_inscricao=l["data"],
+                    ) for l in linhas
+                ])
+                esperado = sum((l["valor"] for l in linhas), Decimal("0"))
+                cols = ", ".join(f"{k}=“{v}”" for k, v in dados["colunas"].items())
+                messages.success(
+                    request,
+                    f"{len(linhas)} inscrição(ões) importadas para “{evento}” — "
+                    f"esperado R$ {esperado:.2f}. Colunas lidas: {cols}.")
+                return redirect(f"/s/financeiro-eventos/?evento={quote(evento)}")
+            except Exception as erro:
+                messages.error(request, f"Não consegui ler essa planilha: {erro}")
+            finally:
+                try:
+                    os.remove(caminho)
+                except OSError:
+                    pass
+
+    resumo = (Inscricao.objects.values("evento").annotate(
+        n=Count("id"), total=Sum("valor")).order_by("evento"))
+    contexto = contexto_base(
+        "financeiro-eventos", titulo="Importar inscrições",
+        eventos_nomes=NOMES_EVENTOS, resumo_import=list(resumo),
+    )
+    return render(request, "financeiro/bater_comprovantes.html", contexto)
+
+
+@login_required
+def conciliar_evento(request):
+    """Conciliação manual: mostra as inscrições (com os comprovantes) ao lado
+    das receitas candidatas do extrato, e deixa marcar/desmarcar cada
+    lançamento como pertencente ao evento — você confere o comprovante e marca."""
+    evento = (request.GET.get("evento") or request.POST.get("evento") or "").strip()
+    if not evento:
+        return redirect("financeiro_eventos")
+
+    if request.method == "POST":
+        marcados = set(request.POST.getlist("linha"))     # ids marcados no checkbox
+        exibidos = request.POST.getlist("cand")           # ids que estavam na tela
+        n_add = n_rem = 0
+        for cid in exibidos:
+            obj = LancamentoBancario.objects.filter(pk=cid).first()
+            if not obj:
+                continue
+            atual = obj.evento or ""
+            if cid in marcados and atual != evento:
+                obj.evento = evento
+                obj.revisado = True
+                obj.save(update_fields=["evento", "revisado"])
+                n_add += 1
+            elif cid not in marcados and atual == evento:  # desmarca só o que era deste evento
+                obj.evento = ""
+                obj.revisado = True
+                obj.save(update_fields=["evento", "revisado"])
+                n_rem += 1
+        messages.success(request, f"Conciliação salva: +{n_add} marcado(s), −{n_rem} removido(s).")
+        destino = f"/s/financeiro-conciliar/?evento={quote(evento)}"
+        for k in ("valor", "status"):
+            v = request.POST.get(k)
+            if v:
+                destino += f"&{k}={quote(v)}"
+        return redirect(destino)
+
+    ano = int(request.GET.get("ano") or 2026)
+    inscricoes = list(Inscricao.objects.filter(evento=evento))
+    esperado = sum((i.valor for i in inscricoes), Decimal("0"))
+
+    # janela de datas do evento (do calendário) para trazer os candidatos do extrato
+    ev = next((e for e in EVENTOS if e[0] == evento), None)
+    if ev:
+        d0, d1 = ev[1] - timedelta(days=45), ev[2] + timedelta(days=21)
+    else:
+        d0, d1 = date(ano, 1, 1), date(ano, 12, 31)
+
+    cand = LancamentoBancario.objects.filter(tipo="receita", data__range=(d0, d1))
+    valor_f = request.GET.get("valor", "")
+    if valor_f:
+        try:
+            cand = cand.filter(valor=Decimal(valor_f))
+        except InvalidOperation:
+            valor_f = ""
+    status_f = request.GET.get("status", "")
+    if status_f == "livres":
+        cand = cand.filter(evento="")
+    elif status_f == "deste":
+        cand = cand.filter(evento=evento)
+    cand = list(cand.order_by("data", "-id"))
+    for l in cand:
+        l.valor_abs = abs(l.valor)
+        l.valor_str = f"{l.valor_abs:.2f}"
+        l.deste = (l.evento or "") == evento
+        l.doutro = bool(l.evento) and not l.deste
+
+    marcado = abs(LancamentoBancario.objects.filter(
+        tipo="receita", evento=evento).aggregate(s=Sum("valor"))["s"] or Decimal("0"))
+    valores_roster = sorted({int(i.valor) for i in inscricoes if i.valor})
+
+    contexto = contexto_base(
+        "financeiro-eventos", titulo=f"Conciliar — {evento}",
+        evento=evento, ano=ano, inscricoes=inscricoes, esperado=esperado,
+        candidatos=cand, marcado=marcado, gap=esperado - marcado,
+        valores_roster=valores_roster, valor_f=valor_f, status_f=status_f,
+        janela_ini=d0, janela_fim=d1, n_cand=len(cand),
+    )
+    return render(request, "financeiro/conciliar_evento.html", contexto)
+
+
 # =========================================================================
 # Conciliação e previsão (baseadas no extrato bancário / Vindi)
 # =========================================================================
@@ -428,6 +651,17 @@ def _vindi_previsto(ano, hoje):
     return previsto
 
 
+def _itens_previstos():
+    """Expande os itens de previsão ativos em dicionários {mês: total} de
+    receitas e despesas previstas (folha, operacionais, receitas manuais)."""
+    itens = list(ItemPrevisao.objects.filter(ativo=True))
+    rec = {m: sum((i.valor_no_mes(m) for i in itens if i.tipo == "receita"), Decimal("0"))
+           for m in range(1, 13)}
+    desp = {m: sum((i.valor_no_mes(m) for i in itens if i.tipo == "despesa"), Decimal("0"))
+            for m in range(1, 13)}
+    return rec, desp
+
+
 @login_required
 def conciliacao(request):
     ano = int(request.GET.get("ano") or 2026)
@@ -453,38 +687,131 @@ def conciliacao(request):
 
 @login_required
 def previsao(request):
-    """Fechamento: realizado (ledger) + previsto (receita Vindi / despesa média)."""
+    """Previsão do ano: realizado (extrato) nos meses passados + previsto nos
+    futuros. O previsto é montado a partir dos itens cadastrados (folha,
+    operacionais, receitas manuais) somados à projeção de filiações da Vindi.
+    Os itens são editáveis aqui mesmo."""
+    # --- CRUD dos itens de previsão (adicionar / remover / ativar-desativar) ---
+    if request.method == "POST":
+        acao = request.POST.get("acao")
+        if acao == "add":
+            try:
+                valor = Decimal(str(request.POST.get("valor") or "0").replace(".", "").replace(",", ".")
+                                if "," in (request.POST.get("valor") or "")
+                                else (request.POST.get("valor") or "0"))
+                ItemPrevisao.objects.create(
+                    nome=(request.POST.get("nome") or "").strip() or "Item",
+                    tipo=request.POST.get("tipo") or "despesa",
+                    valor=valor,
+                    recorrencia=request.POST.get("recorrencia") or "mensal",
+                    mes=int(request.POST["mes"]) if request.POST.get("mes") else None,
+                    categoria=(request.POST.get("categoria") or "").strip(),
+                )
+                messages.success(request, "Item adicionado à previsão.")
+            except (InvalidOperation, ValueError):
+                messages.error(request, "Valor inválido — use números (ex.: 4000 ou 4000,00).")
+        elif acao == "del":
+            ItemPrevisao.objects.filter(pk=request.POST.get("id")).delete()
+            messages.success(request, "Item removido da previsão.")
+        elif acao == "toggle":
+            it = ItemPrevisao.objects.filter(pk=request.POST.get("id")).first()
+            if it:
+                it.ativo = not it.ativo
+                it.save(update_fields=["ativo"])
+        ano_q = request.POST.get("ano") or ""
+        return redirect("/s/financeiro-previsao/" + (f"?ano={ano_q}" if ano_q else ""))
+
     ano = int(request.GET.get("ano") or 2026)
     hoje = timezone.localdate()
-    mes_atual = hoje.month if ano == hoje.year else 12
+    if ano < hoje.year:
+        mes_atual = 12
+    elif ano > hoje.year:
+        mes_atual = 0
+    else:
+        mes_atual = hoje.month
 
+    # realizado (extrato) por mês
     rec_real = {m: Decimal("0") for m in range(1, 13)}
     desp_real = {m: Decimal("0") for m in range(1, 13)}
-    for row in (LancamentoFinanceiro.objects.filter(ano=ano)
-                .values("mes", "tipo").annotate(s=Sum("valor"))):
-        alvo = rec_real if row["tipo"] == "receita" else desp_real
-        alvo[row["mes"]] = row["s"] or Decimal("0")
+    for row in (LancamentoBancario.objects.filter(data__year=ano)
+                .annotate(m=ExtractMonth("data")).values("m", "tipo").annotate(s=Sum("valor"))):
+        if row["m"]:
+            if row["tipo"] == "receita":
+                rec_real[row["m"]] = row["s"] or Decimal("0")
+            else:
+                desp_real[row["m"]] = abs(row["s"] or Decimal("0"))
 
+    # previsto = itens cadastrados + filiações Vindi
     vindi_prev = _vindi_previsto(ano, hoje)
-    desp_passada = sum(desp_real[m] for m in range(1, mes_atual + 1))
-    media_desp = (desp_passada / mes_atual) if mes_atual else Decimal("0")
+    rec_itens, desp_itens = _itens_previstos()
 
+    saldo_inicial = SALDO_INICIAL_2026 if ano == 2026 else Decimal("0")
     linhas = []
     tot_rec = tot_desp = Decimal("0")
+    acum = saldo_inicial
     for m in range(1, 13):
         futuro = ano > hoje.year or (ano == hoje.year and m > mes_atual)
         if futuro:
-            rec, desp = vindi_prev[m], media_desp
+            rec = vindi_prev[m] + rec_itens[m]
+            desp = desp_itens[m]
         else:
             rec, desp = rec_real[m], desp_real[m]
+        acum += rec - desp
         tot_rec += rec
         tot_desp += desp
         linhas.append({"mes": MESES[m - 1], "receita": rec, "despesa": desp,
-                       "saldo": rec - desp, "futuro": futuro})
+                       "saldo": rec - desp, "acum": acum, "futuro": futuro})
+
+    itens = list(ItemPrevisao.objects.all())
+    desp_fixa_mensal = sum((i.valor for i in itens
+                            if i.ativo and i.tipo == "despesa" and i.recorrencia == "mensal"),
+                           Decimal("0"))
+    rec_fixa_mensal = sum((i.valor for i in itens
+                           if i.ativo and i.tipo == "receita" and i.recorrencia == "mensal"),
+                          Decimal("0"))
 
     contexto = contexto_base(
-        "financeiro-previsao", ano=ano, anos=_anos_fin(), linhas=linhas,
+        "financeiro-previsao", ano=ano, anos=_anos_banco(), linhas=linhas,
         tot_rec=tot_rec, tot_desp=tot_desp, fechamento=tot_rec - tot_desp,
-        media_desp=media_desp,
+        saldo_inicial=saldo_inicial, saldo_fim=acum,
+        itens=itens, desp_fixa_mensal=desp_fixa_mensal, rec_fixa_mensal=rec_fixa_mensal,
+        mes_atual_nome=MESES[mes_atual - 1] if 1 <= mes_atual <= 12 else "—",
+        meses_opcoes=list(enumerate(MESES, start=1)),
     )
     return render(request, "financeiro/previsao.html", contexto)
+
+
+@login_required
+def relatorios(request):
+    """Prestação de contas do ano: receitas e despesas por grupo/categoria +
+    resumo por evento. Base para o relatório de fechamento."""
+    ano = int(request.GET.get("ano") or 2026)
+    qs = LancamentoBancario.objects.filter(data__year=ano)
+    rec_qs = qs.filter(tipo="receita")
+    desp_qs = qs.filter(tipo="despesa")
+    tot_rec = abs(rec_qs.aggregate(s=Sum("valor"))["s"] or Decimal("0"))
+    tot_desp = abs(desp_qs.aggregate(s=Sum("valor"))["s"] or Decimal("0"))
+
+    # resumo por evento (mesma lógica de "Balanço dos eventos")
+    dados = (qs.exclude(evento="").values("evento").annotate(
+        receita=Sum("valor", filter=Q(tipo="receita")),
+        despesa=Sum("valor", filter=Q(tipo="despesa")),
+        n=Count("id")).order_by("evento"))
+    eventos = []
+    ev_rec = ev_desp = Decimal("0")
+    for row in dados:
+        r = row["receita"] or Decimal("0")
+        d = abs(row["despesa"] or Decimal("0"))
+        ev_rec += r
+        ev_desp += d
+        eventos.append({"evento": row["evento"], "receita": r, "despesa": d,
+                        "saldo": r - d, "n": row["n"]})
+    eventos.sort(key=lambda e: -(e["receita"] + e["despesa"]))
+
+    contexto = contexto_base(
+        "financeiro-relatorios", ano=ano, anos=_anos_banco(),
+        breakdown_rec=_breakdown(rec_qs), breakdown_desp=_breakdown(desp_qs),
+        tot_rec=tot_rec, tot_desp=tot_desp, resultado=tot_rec - tot_desp,
+        eventos=eventos, ev_rec=ev_rec, ev_desp=ev_desp, ev_saldo=ev_rec - ev_desp,
+    )
+    return render(request, "financeiro/relatorios.html", contexto)

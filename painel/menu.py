@@ -13,17 +13,15 @@ MENU = [
     {
         "titulo": "Financeira",
         "itens": [
-            {"slug": "financeiro-despesas", "label": "Despesas", "icone": "bi-arrow-down-circle"},
-            {"slug": "financeiro-receitas", "label": "Receitas", "icone": "bi-arrow-up-circle"},
-            {"slug": "financeiro-balanco", "label": "Balanço", "icone": "bi-wallet2"},
-            {"slug": "financeiro-eventos", "label": "Por evento", "icone": "bi-calendar-event"},
-            {"slug": "financeiro-eventos-revisar", "label": "Revisar eventos", "icone": "bi-magic"},
-            {"slug": "financeiro-previsao", "label": "Previsão & fechamento", "icone": "bi-graph-up"},
-            {"slug": "financeiro-conciliacao", "label": "Conciliação Vindi", "icone": "bi-link-45deg"},
+            {"slug": "financeiro-balanco", "label": "Início", "icone": "bi-house"},
+            {"slug": "financeiro-detalhado", "label": "Detalhado", "icone": "bi-bar-chart-line"},
+            {"slug": "financeiro-eventos", "label": "Eventos", "icone": "bi-calendar-event"},
+            {"slug": "financeiro-previsao", "label": "Previsão", "icone": "bi-graph-up-arrow"},
+            {"slug": "financeiro-relatorios", "label": "Relatórios", "icone": "bi-file-earmark-text"},
         ],
     },
     {
-        "titulo": "Assinaturas",
+        "titulo": "Filiações",
         "itens": [
             {"slug": "assinaturas-adimplencia", "label": "Assinaturas & adimplência", "icone": "bi-people"},
             {"slug": "recebimentos", "label": "Recebimentos", "icone": "bi-cash-coin"},

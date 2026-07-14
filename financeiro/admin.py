@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import LancamentoBancario, LancamentoFinanceiro
+from .models import Inscricao, ItemPrevisao, LancamentoBancario, LancamentoFinanceiro
 
 
 @admin.register(LancamentoBancario)
@@ -28,4 +28,20 @@ class LancamentoFinanceiroAdmin(admin.ModelAdmin):
     list_filter = ("tipo", "grupo", "categoria", "origem", "ano", "mes")
     search_fields = ("categoria", "evento", "descricao")
     list_editable = ("grupo", "categoria", "evento")
+    list_per_page = 60
+
+
+@admin.register(ItemPrevisao)
+class ItemPrevisaoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "tipo", "valor", "recorrencia", "mes", "categoria", "ativo")
+    list_filter = ("tipo", "recorrencia", "ativo")
+    search_fields = ("nome", "categoria", "observacao")
+    list_editable = ("valor", "ativo")
+
+
+@admin.register(Inscricao)
+class InscricaoAdmin(admin.ModelAdmin):
+    list_display = ("evento", "nome", "categoria", "filiado", "valor", "pacote", "data_inscricao")
+    list_filter = ("evento", "categoria", "filiado", "pacote")
+    search_fields = ("nome", "email", "clube", "treinador")
     list_per_page = 60

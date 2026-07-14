@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block titulo %}Previsão & fechamento — Gestão FPS{% endblock %}
+{% block titulo %}Previsão — Gestão FPS{% endblock %}
 
 {% block conteudo %}
 <div class="barra-acoes">
@@ -14,20 +14,25 @@
 <div class="resumo-chips">
   <div class="chip chip-ok"><span class="chip-num">R$ {{ tot_rec|floatformat:2 }}</span><span class="chip-lbl">Receitas projetadas {{ ano }}</span></div>
   <div class="chip chip-alerta"><span class="chip-num">R$ {{ tot_desp|floatformat:2 }}</span><span class="chip-lbl">Despesas projetadas {{ ano }}</span></div>
-  <div class="chip"><span class="chip-num">R$ {{ fechamento|floatformat:2 }}</span><span class="chip-lbl">Fechamento projetado</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ fechamento|floatformat:2 }}</span><span class="chip-lbl">Resultado projetado</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ saldo_fim|floatformat:2 }}</span><span class="chip-lbl">Saldo previsto fim de {{ ano }}</span></div>
 </div>
 
 <div class="cartao tabela-wrap">
-  <div class="cartao-topo"><span class="contador">Mês a mês — {{ ano }}</span><span class="sync-info">Meses passados = realizado · meses futuros = previsto</span></div>
+  <div class="cartao-topo">
+    <span class="contador">Mês a mês — {{ ano }}</span>
+    <span class="sync-info">Até {{ mes_atual_nome }} = realizado (extrato) · depois = previsto</span>
+  </div>
   <table class="tabela tabela-pivot">
-    <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Tipo</th></tr></thead>
+    <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Resultado</th><th>Saldo acum.</th><th></th></tr></thead>
     <tbody>
       {% for l in linhas %}
-      <tr>
+      <tr class="{% if l.futuro %}linha-prevista{% endif %}">
         <td class="nome-grupo">{{ l.mes }}</td>
         <td class="val-pos">{{ l.receita|floatformat:2 }}</td>
         <td class="val-neg">{{ l.despesa|floatformat:2 }}</td>
-        <td class="col-total">{{ l.saldo|floatformat:2 }}</td>
+        <td class="col-total {% if l.saldo < 0 %}val-neg{% endif %}">{{ l.saldo|floatformat:2 }}</td>
+        <td class="col-total">{{ l.acum|floatformat:2 }}</td>
         <td>{% if l.futuro %}<span class="badge badge-tipo">previsto</span>{% else %}<span class="badge badge-ok">realizado</span>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -35,11 +40,74 @@
   </table>
 </div>
 
-<p class="sync-info" style="margin-top:14px; color:var(--texto-suave); font-size:13px; line-height:1.7;">
-  📌 <strong>Como calculei (v1, vamos refinar):</strong> meses passados usam o <strong>realizado do extrato</strong>.
-  Meses futuros usam: <strong>receita = previsão da Vindi</strong> (filiações) e <strong>despesa = média mensal</strong>
-  realizada (R$ {{ media_desp|floatformat:2 }}/mês). Quando você me mandar as <strong>despesas previstas</strong>
-  (folha fixa, contratos, eventos planejados) e quiser somar a receita de inscrições futuras, eu troco a estimativa
-  pelos números reais.
+<p class="sync-info" style="margin:12px 2px 0; color:var(--texto-suave); font-size:13px; line-height:1.6;">
+  Meses futuros: <strong>receita</strong> = filiações previstas da <a href="{% url 'resumo_assinaturas' %}">Vindi</a> + itens de receita abaixo ·
+  <strong>despesa</strong> = itens abaixo (folha + operacionais + o que você cadastrar). Torneios não entram — cada evento se paga.
 </p>
+
+<h2 class="secao-titulo"><i class="bi bi-sliders"></i> Itens da previsão
+  <span class="grupo-count">R$ {{ desp_fixa_mensal|floatformat:2 }}/mês fixo</span>
+</h2>
+
+<div class="cartao" style="padding:16px 18px;">
+  <form method="post" class="form-item-previsao">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="add">
+    <input type="hidden" name="ano" value="{{ ano }}">
+    <input type="text" name="nome" placeholder="Nome (ex.: Mailchimp)" required>
+    <select name="tipo">
+      <option value="despesa">Despesa</option>
+      <option value="receita">Receita</option>
+    </select>
+    <input type="number" step="0.01" min="0" name="valor" placeholder="Valor R$" required style="max-width:130px;">
+    <select name="recorrencia" id="rec-nova">
+      <option value="mensal">Todo mês</option>
+      <option value="anual">Uma vez por ano</option>
+      <option value="unico">Único (um mês)</option>
+    </select>
+    <select name="mes" id="mes-novo">
+      <option value="">Mês…</option>
+      {% for num, nome in meses_opcoes %}<option value="{{ num }}">{{ nome }}</option>{% endfor %}
+    </select>
+    <input type="text" name="categoria" placeholder="Categoria (opcional)" style="max-width:170px;">
+    <button type="submit" class="btn btn-grad"><i class="bi bi-plus-lg"></i> Adicionar</button>
+  </form>
+</div>
+
+<div class="cartao tabela-wrap" style="margin-top:12px;">
+  <table class="tabela">
+    <thead>
+      <tr><th>Item</th><th>Tipo</th><th>Valor</th><th>Quando</th><th>Categoria</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for i in itens %}
+      <tr class="{% if not i.ativo %}linha-sem-match{% endif %}">
+        <td><strong>{{ i.nome }}</strong>{% if i.observacao %}<div class="sub-linha">{{ i.observacao }}</div>{% endif %}</td>
+        <td>{% if i.tipo == 'receita' %}<span class="badge badge-ok">receita</span>{% else %}<span class="badge badge-atraso">despesa</span>{% endif %}</td>
+        <td class="{% if i.tipo == 'receita' %}val-pos{% else %}val-neg{% endif %}">R$ {{ i.valor|floatformat:2 }}</td>
+        <td>{{ i.periodo_nome }}</td>
+        <td>{{ i.categoria|default:"—" }}</td>
+        <td>
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="toggle"><input type="hidden" name="id" value="{{ i.id }}"><input type="hidden" name="ano" value="{{ ano }}">
+            <button type="submit" class="btn-linha" title="Ativar/desativar">
+              {% if i.ativo %}<span class="badge badge-ok">ativo</span>{% else %}<span class="badge badge-cancel">inativo</span>{% endif %}
+            </button>
+          </form>
+        </td>
+        <td class="col-acao">
+          <form method="post" style="display:inline;" onsubmit="return confirm('Remover “{{ i.nome|escapejs }}” da previsão?');">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="del"><input type="hidden" name="id" value="{{ i.id }}"><input type="hidden" name="ano" value="{{ ano }}">
+            <button type="submit" class="btn-linha btn-linha-perigo" title="Remover"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="vazio-aviso">Nenhum item cadastrado. Adicione folha, contratos e custos fixos acima.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

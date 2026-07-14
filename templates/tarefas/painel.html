@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Tarefas — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<p class="sync-info" style="margin:0 0 12px; color:var(--texto-suave);">
+  <i class="bi bi-list-check"></i> {{ total_afazer }} a fazer · {{ total_feitas }} realizadas — clique numa pessoa pra ver só as dela
+</p>
+
+<div class="resumo-chips">
+  {% for p in pessoas %}
+  <a class="chip chip-pessoa{% if pessoa_id == p.id %} chip-ativa{% endif %}" href="?pessoa={{ p.id }}&status=afazer">
+    <span class="chip-topo"><span class="avatar-mini">{{ p.iniciais }}</span>{{ p.nome }}</span>
+    <span class="chip-num">{{ p.a_fazer }}</span>
+  </a>
+  {% endfor %}
+  <a class="chip chip-pessoa{% if pessoa_id == 0 %} chip-ativa{% endif %}" href="?pessoa=0&status=afazer">
+    <span class="chip-topo"><span class="avatar-mini avatar-sem">?</span>Sem dono</span>
+    <span class="chip-num">{{ sem_dono }}</span>
+  </a>
+</div>
+
+<div class="barra-acoes">
+  <div class="toggle-rd">
+    <a href="?agrupar=pessoa&status={{ status }}" class="btn-toggle {% if agrupar == 'pessoa' %}ativo{% endif %}">Por pessoa</a>
+    <a href="?agrupar=evento&status={{ status }}" class="btn-toggle {% if agrupar == 'evento' %}ativo{% endif %}">Por evento</a>
+    <a href="?agrupar=projeto&status={{ status }}" class="btn-toggle {% if agrupar == 'projeto' %}ativo{% endif %}">Por projeto</a>
+    <a href="?agrupar=todas&status={{ status }}" class="btn-toggle {% if agrupar == 'todas' %}ativo{% endif %}">Todas</a>
+  </div>
+  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <div class="toggle-rd">
+      <a href="?agrupar={{ agrupar }}&status=afazer" class="btn-toggle {% if status == 'afazer' %}ativo{% endif %}">A fazer</a>
+      <a href="?agrupar={{ agrupar }}&status=feitas" class="btn-toggle {% if status == 'feitas' %}ativo{% endif %}">Realizadas</a>
+    </div>
+    <button type="button" class="btn btn-grad" id="abrir-nova"><i class="bi bi-plus-lg"></i> Nova tarefa</button>
+  </div>
+</div>
+
+{% for grupo in grupos %}
+<div class="cartao lista-tarefas">
+  <div class="grupo-header">{{ grupo.titulo }} <span class="grupo-count">{{ grupo.tarefas|length }}</span></div>
+  {% for t in grupo.tarefas %}
+  <div class="tarefa-row{% if t.feita %} feita{% endif %}">
+    <form method="post" action="{% url 'tarefa_toggle' t.id %}" class="check-form">
+      {% csrf_token %}
+      <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <button type="submit" class="check-btn" title="{% if t.feita %}Reabrir tarefa{% else %}Marcar como feita{% endif %}">
+        <i class="bi {% if t.feita %}bi-check-square-fill{% else %}bi-square{% endif %}"></i>
+      </button>
+    </form>
+    <div class="tarefa-info">
+      <span class="tarefa-titulo">{{ t.titulo }}</span>
+      <span class="tarefa-meta">
+        {% if agrupar != 'pessoa' %}<i class="bi bi-person"></i> {% if t.responsavel %}{{ t.responsavel.nome }}{% else %}sem dono{% endif %} · {% endif %}
+        {% if t.prazo %}<i class="bi bi-calendar-event"></i> {{ t.prazo|date:"d/m/Y" }}{% else %}sem prazo{% endif %}
+      </span>
+    </div>
+    {% if t.tipo_vinculo == 'evento' %}<span class="badge badge-evento">{{ t.vinculo_nome }}</span>
+    {% elif t.tipo_vinculo == 'projeto' %}<span class="badge badge-projeto">{{ t.vinculo_nome }}</span>
+    {% else %}<span class="badge badge-avulsa">Avulsa</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% empty %}
+<div class="cartao"><div class="vazio-aviso">Nenhuma tarefa {% if status == 'afazer' %}a fazer{% else %}realizada{% endif %} por aqui. Crie uma em <strong>Nova tarefa</strong>! ✨</div></div>
+{% endfor %}
+
+<div class="modal-fundo" id="modal-nova" hidden>
+  <div class="modal-janela">
+    <div class="modal-cabecalho">
+      <strong><i class="bi bi-plus-lg"></i> Nova tarefa</strong>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <form method="post" action="{% url 'tarefa_criar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <div class="form-grade">
+        <label class="col-2">Tarefa
+          <input type="text" name="titulo" required placeholder="ex: Contratar árbitros">
+        </label>
+        <label>Responsável
+          <select name="responsavel">
+            <option value="">— ninguém ainda —</option>
+            {% for p in pessoas %}<option value="{{ p.id }}">{{ p.nome }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Prazo
+          <input type="date" name="prazo">
+        </label>
+        <label class="col-2">Vincular a
+          <select name="vinculo">
+            <option value="">Avulsa (sem vínculo)</option>
+            {% if eventos %}<optgroup label="Eventos">{% for e in eventos %}<option value="evento:{{ e.id }}">{{ e.nome }}</option>{% endfor %}</optgroup>{% endif %}
+            <optgroup label="Projetos">{% for p in projetos %}<option value="projeto:{{ p.id }}">{{ p.nome }}</option>{% endfor %}</optgroup>
+          </select>
+        </label>
+        <label class="col-2">Descrição (opcional)
+          <input type="text" name="descricao">
+        </label>
+      </div>
+      <div class="modal-rodape">
+        <button type="button" class="btn btn-claro" data-fechar>Cancelar</button>
+        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Criar tarefa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var m = document.getElementById('modal-nova');
+  var b = document.getElementById('abrir-nova');
+  if (!m) return;
+  if (b) b.addEventListener('click', function () { m.hidden = false; });
+  m.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', function () { m.hidden = true; }); });
+  m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.hidden = true; });
+})();
+</script>
+{% endblock %}

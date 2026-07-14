@@ -13,6 +13,9 @@ backups/
 # Variáveis de ambiente e segredos — NÃO subir
 .env
 
+# Configuração local do Claude Code (permissões da máquina) — não versionar
+.claude/settings.local.json
+
 # Cache e artefatos do Python
 __pycache__/
 *.py[cod]

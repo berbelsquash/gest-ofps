@@ -24,7 +24,6 @@
         <label>Grupo
           <select name="grupo" id="f-grupo">
             <option value="">—</option>
-            {% for g in grupos_todos %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
           </select>
         </label>
         <label>Categoria
@@ -54,13 +53,34 @@
   var modal = document.getElementById('modal-editar');
   if (!modal) return;
   var form = document.getElementById('form-editar');
+  var selTipo = document.getElementById('f-tipo');
+  var selGrupo = document.getElementById('f-grupo');
+
+  // Grupos válidos por tipo (receita x despesa).
+  var GRUPOS = {
+    receita: ['Inscrições', 'SquaSHE', 'Cartão/Vindi', 'Filiação', 'Patrocínios', 'Receitas', 'Outras receitas', 'Financeiro (não operacional)'],
+    despesa: ['Torneios', 'Folha', 'Despesas gerais', 'Financeiro (não operacional)']
+  };
+  function popularGrupos(tipo, selecionado) {
+    var lista = GRUPOS[tipo] || GRUPOS.despesa;
+    selGrupo.innerHTML = '<option value="">—</option>';
+    lista.forEach(function (nome) {
+      var o = document.createElement('option');
+      o.value = nome; o.textContent = nome;
+      if (nome === selecionado) o.selected = true;
+      selGrupo.appendChild(o);
+    });
+  }
+  // Ao trocar o tipo, recarrega os grupos (mantendo o atual se ainda for válido).
+  selTipo.addEventListener('change', function () { popularGrupos(selTipo.value, selGrupo.value); });
+
   function set(id, v) { document.getElementById(id).value = v || ''; }
   function abrir(d) {
     form.action = d.url;
     set('f-tipo', d.tipo || 'despesa');
     set('f-valor', d.valor);
     set('f-data', d.data);
-    set('f-grupo', d.grupo);
+    popularGrupos(d.tipo || 'despesa', d.grupo);
     set('f-categoria', d.categoria);
     set('f-evento', d.evento);
     set('f-razao', d.razao);

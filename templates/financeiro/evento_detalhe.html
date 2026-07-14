@@ -16,6 +16,26 @@
   <div class="chip"><span class="chip-num">{{ detalhe|length }}</span><span class="chip-lbl">Lançamentos</span></div>
 </div>
 
+{% if inscricoes %}
+<div class="cartao" style="padding:16px 18px; margin-bottom:18px;">
+  <div class="cartao-topo" style="padding:0 0 12px;">
+    <span class="contador"><i class="bi bi-list-check"></i> Conciliação com as inscrições</span>
+    <a class="btn btn-grad" href="{% url 'financeiro_conciliar' %}?evento={{ evento_sel|urlencode }}"><i class="bi bi-arrow-left-right"></i> Conciliar com o extrato</a>
+  </div>
+  <div class="resumo-chips" style="margin:0;">
+    <div class="chip"><span class="chip-num">R$ {{ esperado|floatformat:2 }}</span><span class="chip-lbl">Esperado ({{ n_insc }} inscrições)</span></div>
+    <div class="chip chip-ok"><span class="chip-num">R$ {{ total_rec|floatformat:2 }}</span><span class="chip-lbl">Marcado no extrato</span></div>
+    <div class="chip {% if gap > 0 %}chip-alerta{% endif %}"><span class="chip-num">R$ {{ gap|floatformat:2 }}</span><span class="chip-lbl">Diferença a investigar</span></div>
+    <div class="chip"><span class="chip-num">{{ n_pacote }}</span><span class="chip-lbl">Via pacote · {{ n_comprov }} c/ comprovante</span></div>
+  </div>
+  {% if gap > 0 %}
+  <p class="sync-info" style="margin:12px 0 0; font-size:12.5px; line-height:1.6;">
+    Faltam <strong>R$ {{ gap|floatformat:2 }}</strong> pra bater. Parte pode ser dos <strong>{{ n_pacote }}</strong> que pagaram via pacote (entram noutro lançamento) ou inscrições ainda sem pagamento no extrato. Marque os recebimentos em <a href="{% url 'financeiro_eventos_revisar' %}">Revisar eventos</a>.
+  </p>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="cartao tabela-wrap">
   <table class="tabela tabela-grad">
     <thead>
@@ -49,6 +69,30 @@
     </tbody>
   </table>
 </div>
+
+{% if inscricoes %}
+<h2 class="secao-titulo"><i class="bi bi-people"></i> Inscrições <span class="grupo-count">{{ n_insc }}</span>
+  <a class="link-evento" style="margin-left:auto; font-size:13px; font-weight:500;" href="{% url 'financeiro_inscricoes' %}">reimportar planilha</a>
+</h2>
+<div class="cartao tabela-wrap">
+  <table class="tabela">
+    <thead><tr><th>Atleta</th><th>Categoria</th><th>Filiado</th><th>Clube/Academia</th><th>Valor</th><th>Pagto</th><th>Comprov.</th></tr></thead>
+    <tbody>
+      {% for i in inscricoes %}
+      <tr>
+        <td><strong>{{ i.nome }}</strong></td>
+        <td>{{ i.categoria|default:"—" }}</td>
+        <td>{{ i.filiado|default:"—" }}</td>
+        <td>{{ i.clube|default:"—"|truncatechars:28 }}</td>
+        <td class="val-pos">R$ {{ i.valor|floatformat:2 }}</td>
+        <td>{% if i.pacote %}<span class="badge badge-tipo">pacote</span>{% else %}—{% endif %}</td>
+        <td>{% if i.comprovante_link %}<a href="{{ i.comprovante_link }}" target="_blank" rel="noopener" title="Abrir comprovante"><i class="bi bi-paperclip"></i></a>{% else %}<span class="sub-linha">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 {% include 'financeiro/_form_editar.html' %}
 {% endblock %}

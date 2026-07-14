@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Conciliar {{ evento }} — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <a class="btn btn-claro" href="{% url 'financeiro_eventos' %}?evento={{ evento|urlencode }}"><i class="bi bi-arrow-left"></i> Voltar ao evento</a>
+  <span class="sync-info" style="color:var(--texto-suave); font-size:13px;">Candidatos do extrato entre {{ janela_ini|date:"d/m" }} e {{ janela_fim|date:"d/m/Y" }}</span>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-arrow-left-right"></i> Conciliar {{ evento }} com o extrato</h2>
+
+<div class="resumo-chips">
+  <div class="chip"><span class="chip-num">R$ {{ esperado|floatformat:2 }}</span><span class="chip-lbl">Esperado ({{ inscricoes|length }} inscrições)</span></div>
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ marcado|floatformat:2 }}</span><span class="chip-lbl">Já marcado no extrato</span></div>
+  <div class="chip {% if gap > 0 %}chip-alerta{% endif %}"><span class="chip-num">R$ {{ gap|floatformat:2 }}</span><span class="chip-lbl">Diferença</span></div>
+  <div class="chip"><span class="chip-num" id="sel-num">R$ 0,00</span><span class="chip-lbl">Selecionado agora (<span id="sel-n">0</span>)</span></div>
+</div>
+
+<div class="conciliar-grid">
+  <!-- Esquerda: inscrições + comprovantes -->
+  <div class="cartao" style="align-self:start;">
+    <div class="cartao-topo"><span class="contador">Inscrições ({{ inscricoes|length }})</span><span class="sync-info">abra o 📎 e ache a linha →</span></div>
+    <div class="lista-roster">
+      {% for i in inscricoes %}
+      <div class="roster-item">
+        <div>
+          <strong>{{ i.nome }}</strong>
+          <div class="sub-linha">{{ i.categoria|default:"—" }}{% if i.filiado %} · {{ i.filiado }}{% endif %}{% if i.pacote %} · <span class="badge badge-tipo">pacote</span>{% endif %}</div>
+        </div>
+        <div class="roster-dir">
+          <span class="val-pos">R$ {{ i.valor|floatformat:2 }}</span>
+          {% if i.comprovante_link %}<a href="{{ i.comprovante_link }}" target="_blank" rel="noopener" class="comprov-link" title="Abrir comprovante"><i class="bi bi-paperclip"></i></a>{% else %}<span class="sub-linha" title="Sem comprovante anexado">—</span>{% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="vazio-aviso">Nenhuma inscrição importada. Suba a planilha em <a href="{% url 'financeiro_inscricoes' %}">Importar inscrições</a>.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Direita: extrato (marcar quais são deste evento) -->
+  <div>
+    <div class="barra-acoes" style="margin-bottom:10px;">
+      <div class="toggle-rd">
+        <a href="?evento={{ evento|urlencode }}{% if valor_f %}&valor={{ valor_f }}{% endif %}" class="btn-toggle {% if not status_f %}ativo{% endif %}">Todas</a>
+        <a href="?evento={{ evento|urlencode }}&status=livres{% if valor_f %}&valor={{ valor_f }}{% endif %}" class="btn-toggle {% if status_f == 'livres' %}ativo{% endif %}">Livres</a>
+        <a href="?evento={{ evento|urlencode }}&status=deste{% if valor_f %}&valor={{ valor_f }}{% endif %}" class="btn-toggle {% if status_f == 'deste' %}ativo{% endif %}">Deste evento</a>
+      </div>
+      <div class="filtros">
+        <span class="sync-info" style="font-size:12px;">valor:</span>
+        <a href="?evento={{ evento|urlencode }}{% if status_f %}&status={{ status_f }}{% endif %}" class="chip-valor {% if not valor_f %}ativo{% endif %}">todos</a>
+        {% for v in valores_roster %}<a href="?evento={{ evento|urlencode }}&valor={{ v }}{% if status_f %}&status={{ status_f }}{% endif %}" class="chip-valor {% if valor_f == v|stringformat:'s' %}ativo{% endif %}">{{ v }}</a>{% endfor %}
+      </div>
+    </div>
+
+    <form method="post" id="form-conc">
+      {% csrf_token %}
+      <input type="hidden" name="evento" value="{{ evento }}">
+      <input type="hidden" name="valor" value="{{ valor_f }}">
+      <input type="hidden" name="status" value="{{ status_f }}">
+      <div class="cartao tabela-wrap">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th style="width:34px;"><input type="checkbox" id="marca-todos" title="Marcar/desmarcar visíveis"></th>
+              <th>Data</th><th>Quem pagou (extrato)</th><th>Valor</th><th>Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in candidatos %}
+            <tr class="{% if l.deste %}linha-deste{% elif l.doutro %}linha-doutro{% endif %}">
+              <td>
+                <input type="hidden" name="cand" value="{{ l.id }}">
+                <input type="checkbox" class="chk-cand" name="linha" value="{{ l.id }}" data-valor="{{ l.valor_abs }}" {% if l.deste %}checked{% endif %}>
+              </td>
+              <td>{{ l.data|date:"d/m/Y" }}</td>
+              <td>{{ l.razao_social|default:l.descricao|default:"—"|truncatechars:38 }}</td>
+              <td class="val-pos">R$ {{ l.valor_abs|floatformat:2 }}</td>
+              <td>
+                {% if l.deste %}<span class="badge badge-ok">deste evento</span>
+                {% elif l.doutro %}<span class="badge badge-atraso" title="Marcado em outro evento">em: {{ l.evento|truncatechars:18 }}</span>
+                {% else %}<span class="badge badge-cancel">livre</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="vazio-aviso">Nenhuma receita no extrato pra este filtro.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if candidatos %}
+      <div class="barra-acoes" style="justify-content:flex-end; margin-top:14px;">
+        <span class="sync-info" style="color:var(--texto-suave);">{{ n_cand }} linha(s) · marcar as que são deste evento e salvar</span>
+        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Salvar conciliação</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var todos = document.getElementById('marca-todos');
+  var chks = Array.prototype.slice.call(document.querySelectorAll('.chk-cand'));
+  var selNum = document.getElementById('sel-num'), selN = document.getElementById('sel-n');
+  function money(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function atualiza() {
+    var soma = 0, n = 0;
+    chks.forEach(function (c) { if (c.checked) { soma += parseFloat(c.dataset.valor || 0); n++; } });
+    selNum.textContent = money(soma); selN.textContent = n;
+  }
+  chks.forEach(function (c) { c.addEventListener('change', atualiza); });
+  if (todos) todos.addEventListener('change', function () {
+    chks.forEach(function (c) { c.checked = todos.checked; }); atualiza();
+  });
+  atualiza();
+})();
+</script>
+{% endblock %}

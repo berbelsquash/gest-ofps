@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Importar inscrições — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <a class="btn btn-claro" href="{% url 'financeiro_eventos' %}"><i class="bi bi-arrow-left"></i> Voltar aos eventos</a>
+</div>
+
+<div class="cartao" style="padding:20px;">
+  <div class="cartao-topo" style="padding:0 0 12px;">
+    <span class="contador"><i class="bi bi-file-earmark-arrow-up"></i> Importar inscrições do Google Forms</span>
+  </div>
+  <p class="sync-info" style="margin:0 0 14px; color:var(--texto-suave); font-size:13px; line-height:1.6;">
+    Escolha o evento e envie o <strong>.xlsx</strong> das respostas do formulário. O sistema guarda a lista de
+    inscritos (atleta, categoria, filiado, valor e o link do comprovante) e, na tela do evento, mostra o
+    <strong>esperado × marcado no extrato</strong>. Reenviar o mesmo evento substitui a lista dele.
+  </p>
+  <form method="post" enctype="multipart/form-data" class="form-importar">
+    {% csrf_token %}
+    <select name="evento" required>
+      <option value="">Evento da planilha…</option>
+      {% for nome in eventos_nomes %}<option value="{{ nome }}">{{ nome }}</option>{% endfor %}
+    </select>
+    <input type="file" name="arquivo" accept=".xlsx" required>
+    <button type="submit" class="btn btn-grad"><i class="bi bi-upload"></i> Importar</button>
+  </form>
+</div>
+
+{% if resumo_import %}
+<h2 class="secao-titulo"><i class="bi bi-list-check"></i> Eventos com inscrições importadas</h2>
+<div class="cartao tabela-wrap">
+  <table class="tabela">
+    <thead><tr><th>Evento</th><th>Inscrições</th><th>Esperado</th><th></th></tr></thead>
+    <tbody>
+      {% for r in resumo_import %}
+      <tr>
+        <td><strong>{{ r.evento }}</strong></td>
+        <td>{{ r.n }}</td>
+        <td class="val-pos">R$ {{ r.total|floatformat:2 }}</td>
+        <td class="col-acao"><a class="link-evento" href="{% url 'financeiro_eventos' %}?evento={{ r.evento|urlencode }}">ver conciliação <i class="bi bi-chevron-right"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="sync-info" style="margin-top:14px; color:var(--texto-suave); font-size:13px; line-height:1.6;">
+  💡 O <strong>zip de comprovantes</strong> não precisa subir — os links do Drive já vêm na planilha e ficam clicáveis
+  por inscrição. Para fechar a marcação dos recebimentos no extrato, use
+  <a href="{% url 'financeiro_eventos_revisar' %}">Revisar eventos</a> (casa por valor + data).
+</p>
+{% endblock %}

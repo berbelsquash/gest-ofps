@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Relatórios — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <select name="ano" onchange="this.form.submit()">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+  <button type="button" class="btn btn-claro" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-file-earmark-text"></i> Prestação de contas — {{ ano }}</h2>
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ tot_rec|floatformat:2 }}</span><span class="chip-lbl">Total de receitas</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">R$ {{ tot_desp|floatformat:2 }}</span><span class="chip-lbl">Total de despesas</span></div>
+  <div class="chip"><span class="chip-num {% if resultado < 0 %}val-neg{% endif %}">R$ {{ resultado|floatformat:2 }}</span><span class="chip-lbl">Resultado do ano</span></div>
+</div>
+
+<div class="detalhe-grid">
+  <div class="cartao">
+    <div class="cartao-topo"><span class="contador">Receitas por categoria</span><span class="val-pos">R$ {{ tot_rec|floatformat:2 }}</span></div>
+    {% for g in breakdown_rec %}
+    <div class="cat-grupo">
+      <div class="cat-linha"><strong>{{ g.grupo }}</strong><strong class="val-pos">R$ {{ g.total|floatformat:2 }}</strong></div>
+      {% for c in g.categorias %}
+      <div class="cat-linha cat-sub"><span>{{ c.nome }}</span><span>R$ {{ c.valor|floatformat:2 }}</span></div>
+      {% endfor %}
+    </div>
+    {% empty %}<div class="vazio-aviso">Sem receitas em {{ ano }}.</div>{% endfor %}
+  </div>
+  <div class="cartao">
+    <div class="cartao-topo"><span class="contador">Despesas por categoria</span><span class="val-neg">R$ {{ tot_desp|floatformat:2 }}</span></div>
+    {% for g in breakdown_desp %}
+    <div class="cat-grupo">
+      <div class="cat-linha"><strong>{{ g.grupo }}</strong><strong class="val-neg">R$ {{ g.total|floatformat:2 }}</strong></div>
+      {% for c in g.categorias %}
+      <div class="cat-linha cat-sub"><span>{{ c.nome }}</span><span>R$ {{ c.valor|floatformat:2 }}</span></div>
+      {% endfor %}
+    </div>
+    {% empty %}<div class="vazio-aviso">Sem despesas em {{ ano }}.</div>{% endfor %}
+  </div>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-calendar-event"></i> Resumo por evento — {{ ano }}</h2>
+<div class="cartao tabela-wrap">
+  <table class="tabela">
+    <thead><tr><th>Evento</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Lanç.</th></tr></thead>
+    <tbody>
+      {% for e in eventos %}
+      <tr>
+        <td><a class="link-evento" href="{% url 'financeiro_eventos' %}?ano={{ ano }}&evento={{ e.evento|urlencode }}">{{ e.evento }} <i class="bi bi-chevron-right"></i></a></td>
+        <td class="val-pos">R$ {{ e.receita|floatformat:2 }}</td>
+        <td class="val-neg">R$ {{ e.despesa|floatformat:2 }}</td>
+        <td class="col-total {% if e.saldo < 0 %}val-neg{% endif %}">R$ {{ e.saldo|floatformat:2 }}</td>
+        <td>{{ e.n }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="vazio-aviso">Nenhum evento com lançamentos vinculados.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if eventos %}
+    <tfoot>
+      <tr class="linha-total">
+        <td><strong>Total dos eventos</strong></td>
+        <td class="val-pos"><strong>R$ {{ ev_rec|floatformat:2 }}</strong></td>
+        <td class="val-neg"><strong>R$ {{ ev_desp|floatformat:2 }}</strong></td>
+        <td class="col-total {% if ev_saldo < 0 %}val-neg{% endif %}"><strong>R$ {{ ev_saldo|floatformat:2 }}</strong></td>
+        <td></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+
+<p class="sync-info" style="margin-top:12px; color:var(--texto-suave); font-size:13px; line-height:1.6;">
+  Números direto do extrato categorizado. Os eventos são centro de custo (cada torneio se paga com inscrições/patrocínio);
+  o resultado do ano inclui filiações, folha e operacionais. Use <strong>Imprimir / PDF</strong> para a prestação de contas.
+</p>
+{% endblock %}
