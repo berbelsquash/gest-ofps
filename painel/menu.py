@@ -5,9 +5,10 @@
 
 MENU = [
     {
-        "titulo": "",
+        "titulo": "Tarefas e projetos",
         "itens": [
             {"slug": "tarefas-por-pessoa", "label": "Tarefas", "icone": "bi-check2-square"},
+            {"slug": "projetos", "label": "Projetos", "icone": "bi-kanban"},
         ],
     },
     {

@@ -3,96 +3,94 @@
 {% block titulo %}Tarefas — Gestão FPS{% endblock %}
 
 {% block conteudo %}
-<p class="sync-info" style="margin:0 0 12px; color:var(--texto-suave);">
-  <i class="bi bi-list-check"></i> {{ total_afazer }} a fazer · {{ total_feitas }} realizadas — clique numa pessoa pra ver só as dela
-</p>
-
-<div class="resumo-chips">
-  {% for p in pessoas %}
-  <a class="chip chip-pessoa{% if pessoa_id == p.id %} chip-ativa{% endif %}" href="?pessoa={{ p.id }}&status=afazer">
-    <span class="chip-topo"><span class="avatar-mini">{{ p.iniciais }}</span>{{ p.nome }}</span>
-    <span class="chip-num">{{ p.a_fazer }}</span>
-  </a>
-  {% endfor %}
-  <a class="chip chip-pessoa{% if pessoa_id == 0 %} chip-ativa{% endif %}" href="?pessoa=0&status=afazer">
-    <span class="chip-topo"><span class="avatar-mini avatar-sem">?</span>Sem dono</span>
-    <span class="chip-num">{{ sem_dono }}</span>
-  </a>
-</div>
-
 <div class="barra-acoes">
-  <div class="toggle-rd">
-    <a href="?agrupar=pessoa&status={{ status }}" class="btn-toggle {% if agrupar == 'pessoa' %}ativo{% endif %}">Por pessoa</a>
-    <a href="?agrupar=evento&status={{ status }}" class="btn-toggle {% if agrupar == 'evento' %}ativo{% endif %}">Por evento</a>
-    <a href="?agrupar=projeto&status={{ status }}" class="btn-toggle {% if agrupar == 'projeto' %}ativo{% endif %}">Por projeto</a>
-    <a href="?agrupar=todas&status={{ status }}" class="btn-toggle {% if agrupar == 'todas' %}ativo{% endif %}">Todas</a>
-  </div>
-  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-    <div class="toggle-rd">
-      <a href="?agrupar={{ agrupar }}&status=afazer" class="btn-toggle {% if status == 'afazer' %}ativo{% endif %}">A fazer</a>
-      <a href="?agrupar={{ agrupar }}&status=feitas" class="btn-toggle {% if status == 'feitas' %}ativo{% endif %}">Realizadas</a>
-    </div>
+  <span class="sync-info" style="color:var(--texto-suave); font-size:14px;"><i class="bi bi-list-check"></i> {{ total_afazer }} a fazer</span>
+  <div class="barra-acoes-dir">
+    <a class="btn btn-claro" href="{% url 'tarefas_agenda' %}"><i class="bi bi-calendar3"></i> Agenda</a>
+    <button type="button" class="btn btn-claro" id="abrir-reuniao"><i class="bi bi-people"></i> Nova reunião</button>
     <button type="button" class="btn btn-grad" id="abrir-nova"><i class="bi bi-plus-lg"></i> Nova tarefa</button>
   </div>
 </div>
 
-{% for grupo in grupos %}
-<div class="cartao lista-tarefas">
-  <div class="grupo-header">{{ grupo.titulo }} <span class="grupo-count">{{ grupo.tarefas|length }}</span></div>
-  {% for t in grupo.tarefas %}
-  <div class="tarefa-row{% if t.feita %} feita{% endif %}">
-    <form method="post" action="{% url 'tarefa_toggle' t.id %}" class="check-form">
-      {% csrf_token %}
-      <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
-      <button type="submit" class="check-btn" title="{% if t.feita %}Reabrir tarefa{% else %}Marcar como feita{% endif %}">
-        <i class="bi {% if t.feita %}bi-check-square-fill{% else %}bi-square{% endif %}"></i>
-      </button>
-    </form>
-    <div class="tarefa-info">
-      <span class="tarefa-titulo">{{ t.titulo }}</span>
-      <span class="tarefa-meta">
-        {% if agrupar != 'pessoa' %}<i class="bi bi-person"></i> {% if t.responsavel %}{{ t.responsavel.nome }}{% else %}sem dono{% endif %} · {% endif %}
-        {% if t.prazo %}<i class="bi bi-calendar-event"></i> {{ t.prazo|date:"d/m/Y" }}{% else %}sem prazo{% endif %}
-      </span>
-    </div>
-    {% if t.tipo_vinculo == 'evento' %}<span class="badge badge-evento">{{ t.vinculo_nome }}</span>
-    {% elif t.tipo_vinculo == 'projeto' %}<span class="badge badge-projeto">{{ t.vinculo_nome }}</span>
-    {% else %}<span class="badge badge-avulsa">Avulsa</span>{% endif %}
-  </div>
+<div class="resumo-chips">
+  <a class="chip chip-pessoa{% if not pessoa_sel %} chip-ativa{% endif %}" href="?status={{ status }}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}">
+    <span class="chip-topo"><span class="avatar-mini avatar-sem">∑</span>Todas</span><span class="chip-num">{{ total_afazer }}</span>
+  </a>
+  {% for p in pessoas %}
+  <a class="chip chip-pessoa{% if pessoa_sel == p.id|stringformat:'s' %} chip-ativa{% endif %}" href="?pessoa={{ p.id }}&status={{ status }}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}">
+    <span class="chip-topo"><span class="avatar-mini">{{ p.iniciais }}</span>{{ p.nome }}</span>
+    <span class="chip-num">{{ p.a_fazer }}</span>
+  </a>
   {% endfor %}
 </div>
-{% empty %}
-<div class="cartao"><div class="vazio-aviso">Nenhuma tarefa {% if status == 'afazer' %}a fazer{% else %}realizada{% endif %} por aqui. Crie uma em <strong>Nova tarefa</strong>! ✨</div></div>
-{% endfor %}
+
+<div class="cartao lista-tarefas" style="margin-bottom:16px;">
+  <div class="grupo-header"><i class="bi bi-sun"></i> Tarefas de hoje <span class="grupo-count">{{ tarefas_dia|length }}</span>
+    <span class="sync-info" style="margin-left:auto; font-weight:400; text-transform:capitalize;">{{ hoje|date:"l · d/m" }}</span>
+  </div>
+  {% for t in tarefas_dia %}{% include 'tarefas/_linha.html' %}{% empty %}<div class="tarefa-vazio">Nada pra hoje. 🎉</div>{% endfor %}
+  <div class="grupo-header grupo-header-2"><i class="bi bi-people"></i> Reuniões de hoje <span class="grupo-count">{{ reunioes_dia|length }}</span></div>
+  {% for t in reunioes_dia %}{% include 'tarefas/_linha.html' %}{% empty %}<div class="tarefa-vazio">Sem reuniões hoje.</div>{% endfor %}
+</div>
+
+<div class="barra-acoes">
+  <div class="toggle-rd">
+    <a href="?status=afazer{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'afazer' %}ativo{% endif %}" title="Próximos 7 dias, atrasadas e sem prazo">A fazer</a>
+    <a href="?status=futuras{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'futuras' %}ativo{% endif %}" title="Prazo depois de 7 dias">Futuras</a>
+    <a href="?status=feitas{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'feitas' %}ativo{% endif %}">Realizadas</a>
+  </div>
+  <form method="get" class="filtros">
+    {% if pessoa_sel %}<input type="hidden" name="pessoa" value="{{ pessoa_sel }}">{% endif %}
+    <input type="hidden" name="status" value="{{ status }}">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="">Todos os tipos</option>
+      {% for val, lbl in tipos %}<option value="{{ val }}" {% if tipo_sel == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="cartao lista-tarefas">
+  {% for t in lista %}{% include 'tarefas/_linha.html' %}{% empty %}
+  <div class="vazio-aviso">Nenhuma tarefa neste filtro. Crie uma em <strong>Nova tarefa</strong>. ✨</div>
+  {% endfor %}
+</div>
 
 <div class="modal-fundo" id="modal-nova" hidden>
   <div class="modal-janela">
     <div class="modal-cabecalho">
-      <strong><i class="bi bi-plus-lg"></i> Nova tarefa</strong>
+      <strong id="modal-nova-titulo"><i class="bi bi-plus-lg"></i> Nova tarefa</strong>
       <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
     </div>
     <form method="post" action="{% url 'tarefa_criar' %}">
       {% csrf_token %}
       <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <input type="hidden" name="tipo" id="campo-tipo" value="avulsa">
       <div class="form-grade">
-        <label class="col-2">Tarefa
+        <label class="col-2">Título
           <input type="text" name="titulo" required placeholder="ex: Contratar árbitros">
         </label>
-        <label>Responsável
-          <select name="responsavel">
-            <option value="">— ninguém ainda —</option>
-            {% for p in pessoas %}<option value="{{ p.id }}">{{ p.nome }}</option>{% endfor %}
-          </select>
+        <label class="col-2">Responsáveis
+          <span class="check-inline">
+            {% for p in pessoas %}<label class="chk-pill"><input type="checkbox" name="responsaveis" value="{{ p.id }}"> {{ p.nome }}</label>{% endfor %}
+          </span>
         </label>
         <label>Prazo
           <input type="date" name="prazo">
         </label>
-        <label class="col-2">Vincular a
+        <label>Hora <span class="opt-hora">(reunião)</span>
+          <input type="time" name="hora">
+        </label>
+        <label class="col-2 campo-vinculo">Vincular a
           <select name="vinculo">
             <option value="">Avulsa (sem vínculo)</option>
             {% if eventos %}<optgroup label="Eventos">{% for e in eventos %}<option value="evento:{{ e.id }}">{{ e.nome }}</option>{% endfor %}</optgroup>{% endif %}
-            <optgroup label="Projetos">{% for p in projetos %}<option value="projeto:{{ p.id }}">{{ p.nome }}</option>{% endfor %}</optgroup>
+            {% if projetos %}<optgroup label="Projetos">{% for p in projetos %}<option value="projeto:{{ p.id }}">{{ p.nome }}</option>{% endfor %}</optgroup>{% endif %}
           </select>
+        </label>
+        <label class="col-2">Temas
+          <span class="check-inline">
+            {% for tm in temas %}<label class="chk-pill"><input type="checkbox" name="temas" value="{{ tm.id }}"> {{ tm.nome }}</label>{% endfor %}
+          </span>
         </label>
         <label class="col-2">Descrição (opcional)
           <input type="text" name="descricao">
@@ -100,7 +98,7 @@
       </div>
       <div class="modal-rodape">
         <button type="button" class="btn btn-claro" data-fechar>Cancelar</button>
-        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Criar tarefa</button>
+        <button type="submit" class="btn btn-grad" id="modal-nova-salvar"><i class="bi bi-check-lg"></i> Criar tarefa</button>
       </div>
     </form>
   </div>
@@ -109,9 +107,21 @@
 <script>
 (function () {
   var m = document.getElementById('modal-nova');
-  var b = document.getElementById('abrir-nova');
   if (!m) return;
-  if (b) b.addEventListener('click', function () { m.hidden = false; });
+  var tipo = document.getElementById('campo-tipo');
+  var titulo = document.getElementById('modal-nova-titulo');
+  var salvar = document.getElementById('modal-nova-salvar');
+  var vinc = m.querySelector('.campo-vinculo');
+  function abrir(reuniao) {
+    tipo.value = reuniao ? 'reuniao' : 'avulsa';
+    titulo.innerHTML = reuniao ? '<i class="bi bi-people"></i> Nova reunião' : '<i class="bi bi-plus-lg"></i> Nova tarefa';
+    salvar.innerHTML = reuniao ? '<i class="bi bi-check-lg"></i> Criar reunião' : '<i class="bi bi-check-lg"></i> Criar tarefa';
+    vinc.style.display = reuniao ? 'none' : '';
+    m.hidden = false;
+  }
+  var bn = document.getElementById('abrir-nova'), br = document.getElementById('abrir-reuniao');
+  if (bn) bn.addEventListener('click', function () { abrir(false); });
+  if (br) br.addEventListener('click', function () { abrir(true); });
   m.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', function () { m.hidden = true; }); });
   m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.hidden = true; });

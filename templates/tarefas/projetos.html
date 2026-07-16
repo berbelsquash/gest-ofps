@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Projetos — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <span class="sync-info" style="color:var(--texto-suave); font-size:14px;"><i class="bi bi-kanban"></i> {{ projetos|length }} projeto(s)</span>
+  <button type="button" class="btn btn-grad" id="abrir-novo"><i class="bi bi-plus-lg"></i> Novo projeto</button>
+</div>
+
+<div class="projetos-grid">
+  {% for p in projetos %}
+  <a class="cartao proj-card" href="{% url 'projeto_detalhe' p.id %}">
+    <div class="proj-topo">
+      <strong>{{ p.nome }}</strong>
+      <span class="badge status-{{ p.status }}">{{ p.get_status_display }}</span>
+    </div>
+    <p class="proj-resumo">{{ p.resumo|default:"Sem resumo ainda — clique para montar o business plan."|truncatechars:130 }}</p>
+    <div class="proj-rodape"><i class="bi bi-check2-square"></i> {{ p.n_afazer }} a fazer · {{ p.n_total }} tarefas</div>
+  </a>
+  {% empty %}
+  <div class="cartao" style="grid-column:1/-1;"><div class="vazio-aviso">Nenhum projeto ainda. Crie o primeiro em <strong>Novo projeto</strong>. 🚀</div></div>
+  {% endfor %}
+</div>
+
+<div class="modal-fundo" id="modal-novo" hidden>
+  <div class="modal-janela">
+    <div class="modal-cabecalho">
+      <strong><i class="bi bi-plus-lg"></i> Novo projeto</strong>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <form method="post" action="{% url 'projetos_lista' %}">
+      {% csrf_token %}
+      <div class="form-grade">
+        <label class="col-2">Nome do projeto
+          <input type="text" name="nome" required placeholder="ex: Universidade do Squash">
+        </label>
+        <label>Status
+          <select name="status">
+            {% for val, lbl in status_opcoes %}<option value="{{ val }}" {% if val == 'planejamento' %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="col-2">Resumo (opcional)
+          <input type="text" name="resumo" placeholder="uma frase sobre o projeto">
+        </label>
+      </div>
+      <div class="modal-rodape">
+        <button type="button" class="btn btn-claro" data-fechar>Cancelar</button>
+        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Criar e abrir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var m = document.getElementById('modal-novo'), b = document.getElementById('abrir-novo');
+  if (!m) return;
+  if (b) b.addEventListener('click', function () { m.hidden = false; });
+  m.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', function () { m.hidden = true; }); });
+  m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.hidden = true; });
+})();
+</script>
+{% endblock %}

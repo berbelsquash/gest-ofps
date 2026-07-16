@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ projeto.nome }} — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <a class="btn btn-claro" href="{% url 'projetos_lista' %}"><i class="bi bi-arrow-left"></i> Projetos</a>
+  <button type="button" class="btn btn-claro" disabled title="Em breve — geração de apresentação com Claude">
+    <i class="bi bi-easel"></i> Criar apresentação
+  </button>
+</div>
+
+<h2 class="secao-titulo"><i class="bi bi-kanban"></i> {{ projeto.nome }}
+  <span class="badge status-{{ projeto.status }}" style="margin-left:6px;">{{ projeto.get_status_display }}</span>
+</h2>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="acao" value="salvar_plano">
+  <div class="cartao" style="padding:18px 20px;">
+    <div class="form-grade">
+      <label>Status
+        <select name="status">
+          {% for val, lbl in status_opcoes %}<option value="{{ val }}" {% if val == projeto.status %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="col-2-3">Resumo (uma frase)
+        <input type="text" name="resumo" value="{{ projeto.resumo }}" placeholder="do que se trata o projeto">
+      </label>
+    </div>
+
+    <div class="plano-titulo"><i class="bi bi-journal-text"></i> Business plan</div>
+    <div class="plano-grid">
+      {% for r in respostas %}
+      <label class="plano-q">
+        <span class="plano-pergunta">{{ forloop.counter }}. {{ r.pergunta }}</span>
+        <textarea name="resposta_{{ r.id }}" rows="2" placeholder="responda aqui…">{{ r.resposta }}</textarea>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="modal-rodape" style="justify-content:flex-end;">
+      <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Salvar projeto</button>
+    </div>
+  </div>
+</form>
+
+<h2 class="secao-titulo"><i class="bi bi-list-check"></i> Checklist & timeline
+  <span class="grupo-count">{{ tarefas|length }}</span>
+  <a class="link-evento" style="margin-left:auto; font-size:13px; font-weight:500;" href="{% url 'tarefas_painel' %}?tipo=projeto&status=afazer">ver na aba Tarefas</a>
+</h2>
+
+<div class="cartao" style="padding:14px 18px;">
+  <form method="post" class="form-item-previsao">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="add_tarefa">
+    <input type="text" name="titulo" placeholder="nova etapa/tarefa do projeto" required style="flex:1 1 220px;">
+    <select name="responsavel">
+      <option value="">responsável…</option>
+      {% for p in pessoas %}<option value="{{ p.id }}">{{ p.nome }}</option>{% endfor %}
+    </select>
+    <input type="date" name="prazo">
+    <button type="submit" class="btn btn-grad"><i class="bi bi-plus-lg"></i> Adicionar</button>
+  </form>
+</div>
+
+<div class="cartao lista-tarefas" style="margin-top:12px;">
+  {% for t in tarefas %}{% include 'tarefas/_linha.html' %}{% empty %}
+  <div class="tarefa-vazio">Sem tarefas ainda. Adicione as etapas (checklist) e os marcos (timeline) acima — elas aparecem na aba Tarefas com o filtro <strong>Projeto</strong>.</div>
+  {% endfor %}
+</div>
+{% endblock %}

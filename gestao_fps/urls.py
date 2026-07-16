@@ -19,8 +19,11 @@ urlpatterns = [
     # Seção inicial do painel (Painel de tarefas).
     path("", tarefas_views.painel_tarefas, name="home"),
     path("s/tarefas-por-pessoa/", tarefas_views.painel_tarefas, name="tarefas_painel"),
+    path("s/tarefas-agenda/", tarefas_views.agenda, name="tarefas_agenda"),
     path("tarefas/nova/", tarefas_views.tarefa_criar, name="tarefa_criar"),
     path("tarefas/<int:pk>/toggle/", tarefas_views.tarefa_toggle, name="tarefa_toggle"),
+    path("s/projetos/", tarefas_views.projetos_lista, name="projetos_lista"),
+    path("projetos/<int:pk>/", tarefas_views.projeto_detalhe, name="projeto_detalhe"),
     # Abas com tela própria (precisam vir ANTES da rota genérica).
     path("s/assinaturas-adimplencia/", assinaturas_views.adimplencia, name="assinaturas_adimplencia"),
     path("s/recebimentos/", assinaturas_views.recebimentos, name="recebimentos"),

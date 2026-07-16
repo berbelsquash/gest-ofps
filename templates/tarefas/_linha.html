@@ -1,0 +1,27 @@
+{% comment %}Linha de uma tarefa. Espera `t` no contexto.{% endcomment %}
+<div class="tarefa-row{% if t.feita %} feita{% endif %}{% if t.atrasada %} atrasada{% endif %}">
+  <form method="post" action="{% url 'tarefa_toggle' t.id %}" class="check-form">
+    {% csrf_token %}
+    <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+    <button type="submit" class="check-btn" title="{% if t.feita %}Reabrir tarefa{% else %}Marcar como feita{% endif %}">
+      <i class="bi {% if t.feita %}bi-check-square-fill{% else %}bi-square{% endif %}"></i>
+    </button>
+  </form>
+  <div class="tarefa-info">
+    <span class="tarefa-titulo">{{ t.titulo }}</span>
+    <span class="tarefa-meta">
+      {% if t.prazo %}<i class="bi bi-calendar-event"></i> {{ t.prazo|date:"d/m/Y" }}{% if t.hora %} · {{ t.hora|time:"H:i" }}{% endif %}{% else %}sem prazo{% endif %}
+      {% for tm in t.temas.all %}<span class="tema-chip">{{ tm.nome }}</span>{% endfor %}
+    </span>
+  </div>
+  <div class="tarefa-dir">
+    <span class="avatar-group">
+      {% for r in t.responsaveis.all %}<span class="avatar-mini" title="{{ r.nome }}">{{ r.iniciais }}</span>{% empty %}<span class="avatar-mini avatar-sem" title="sem dono">?</span>{% endfor %}
+    </span>
+    {% if t.tipo == 'evento' %}<span class="badge badge-evento">{{ t.vinculo_nome|truncatechars:22 }}</span>
+    {% elif t.tipo == 'projeto' %}<span class="badge badge-projeto">{{ t.vinculo_nome|truncatechars:22 }}</span>
+    {% elif t.tipo == 'reuniao' %}<span class="badge badge-reuniao">reunião</span>
+    {% elif t.tipo == 'geral' %}<span class="badge badge-geral">recorrente</span>
+    {% else %}<span class="badge badge-avulsa">avulsa</span>{% endif %}
+  </div>
+</div>
