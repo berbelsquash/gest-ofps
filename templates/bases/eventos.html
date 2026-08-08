@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Eventos — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <div class="toggle-rd">
+    <a href="?quando=proximos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'proximos' %}ativo{% endif %}">Próximos</a>
+    <a href="?quando=todos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'todos' %}ativo{% endif %}">Todos</a>
+    <a href="?quando=passados{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'passados' %}ativo{% endif %}">Passados</a>
+  </div>
+  <div class="barra-acoes-dir">
+    <form method="get" class="filtros">
+      <input type="hidden" name="quando" value="{{ quando }}">
+      <select name="tipo" onchange="this.form.submit()">
+        <option value="">Todos os tipos</option>
+        {% for val, lbl in tipos %}<option value="{{ val }}" {% if val == tipo %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+      </select>
+    </form>
+    <a class="btn btn-claro" href="/admin/tarefas/evento/add/"><i class="bi bi-plus-lg"></i> Novo evento</a>
+  </div>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip"><span class="chip-num">{{ total }}</span><span class="chip-lbl">Eventos cadastrados</span></div>
+  <div class="chip"><span class="chip-num">{{ eventos|length }}</span><span class="chip-lbl">No filtro atual</span></div>
+</div>
+
+<div class="cartao tabela-wrap">
+  <table class="tabela tabela-grad">
+    <thead>
+      <tr><th>Evento</th><th>Tipo</th><th>Tier</th><th>Datas</th><th>Inscrições até</th><th>Tarefas</th><th>Editar</th></tr>
+    </thead>
+    <tbody>
+      {% for e in eventos %}
+      <tr>
+        <td><strong>{{ e.nome }}</strong></td>
+        <td>{{ e.get_tipo_display }}</td>
+        <td>{{ e.tier|default:"—" }}</td>
+        <td>{{ e.data_inicio|date:"d/m/y"|default:"—" }}{% if e.data_fim and e.data_fim != e.data_inicio %} – {{ e.data_fim|date:"d/m/y" }}{% endif %}</td>
+        <td>{{ e.inscricoes_ate|date:"d/m/y"|default:"—" }}</td>
+        <td>{{ e.n_tarefas }}</td>
+        <td class="col-acao">
+          <a class="btn-editar" href="#" title="Editar evento"
+             data-id="{{ e.id }}" data-nome="{{ e.nome }}" data-tipo="{{ e.tipo }}"
+             data-tier="{{ e.tier }}" data-valores="{{ e.valores }}" data-inicio="{{ e.data_inicio|date:'Y-m-d' }}"
+             data-fim="{{ e.data_fim|date:'Y-m-d' }}" data-insc="{{ e.inscricoes_ate|date:'Y-m-d' }}"><i class="bi bi-pencil-square"></i></a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="vazio-aviso">Nenhum evento neste filtro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-fundo" id="modal-evento" hidden>
+  <div class="modal-janela">
+    <div class="modal-cabecalho">
+      <strong><i class="bi bi-pencil-square"></i> Editar evento</strong>
+      <button type="button" class="modal-fechar" data-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <form method="post" action="{% url 'bases_evento_editar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="id" id="ev-id">
+      <div class="form-grade">
+        <label class="col-2">Nome<input type="text" name="nome" id="ev-nome" required></label>
+        <label>Tipo
+          <select name="tipo" id="ev-tipo">
+            {% for val, lbl in tipos %}<option value="{{ val }}">{{ lbl }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Tier<input type="text" name="tier" id="ev-tier" placeholder="ex: Gold"></label>
+        <label>Início<input type="date" name="data_inicio" id="ev-inicio"></label>
+        <label>Fim<input type="date" name="data_fim" id="ev-fim"></label>
+        <label>Inscrições até<input type="date" name="inscricoes_ate" id="ev-insc"></label>
+        <label class="col-2">Valores de inscrição <span class="opt-hora">(ex.: 180, 260 — pra linkar receitas por valor)</span>
+          <input type="text" name="valores" id="ev-valores" placeholder="ex.: 180, 260">
+        </label>
+      </div>
+      <div class="modal-rodape">
+        <button type="button" class="btn btn-claro" data-fechar>Cancelar</button>
+        <button type="submit" class="btn btn-grad"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="sync-info" style="margin-top:12px; color:var(--texto-suave); font-size:12px;">
+  Editar datas aqui não regera automaticamente o checklist/comunicações já criados — me avise se precisar regerar.
+</p>
+
+<script>
+(function () {
+  var m = document.getElementById('modal-evento');
+  if (!m) return;
+  function set(id, v) { document.getElementById(id).value = v || ''; }
+  document.querySelectorAll('.btn-editar').forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      e.preventDefault();
+      var d = b.dataset;
+      set('ev-id', d.id); set('ev-nome', d.nome); set('ev-tier', d.tier); set('ev-valores', d.valores);
+      set('ev-inicio', d.inicio); set('ev-fim', d.fim); set('ev-insc', d.insc);
+      document.getElementById('ev-tipo').value = d.tipo || 'campeonato';
+      m.hidden = false;
+    });
+  });
+  m.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', function () { m.hidden = true; }); });
+  m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.hidden = true; });
+})();
+</script>
+{% endblock %}

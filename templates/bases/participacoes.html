@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Participações — Gestão FPS{% endblock %}
+
+{% block conteudo %}
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar atleta, campeonato, clube…" style="min-width:230px;">
+    {% if campeonato %}<input type="hidden" name="campeonato" value="{{ campeonato }}">{% endif %}
+    {% if so_sem %}<input type="hidden" name="sem_atleta" value="1">{% endif %}
+    <button class="btn btn-claro" type="submit"><i class="bi bi-search"></i></button>
+  </form>
+  <div class="barra-acoes-dir">
+    <a class="btn btn-claro" href="{% url 'bases_participacoes_exportar' %}"><i class="bi bi-download"></i> Exportar</a>
+    <form method="post" action="{% url 'bases_participacoes_importar' %}" enctype="multipart/form-data" class="form-importar">
+      {% csrf_token %}
+      <input type="file" name="arquivo" accept=".xlsx" required>
+      <button class="btn btn-grad" type="submit"><i class="bi bi-upload"></i> Importar</button>
+    </form>
+  </div>
+</div>
+
+<div class="resumo-chips">
+  <div class="chip"><span class="chip-num">{{ n_total }}</span><span class="chip-lbl">Participações</span></div>
+  <div class="chip chip-ok"><span class="chip-num">{{ n_casados }}</span><span class="chip-lbl">Ligadas a atletas</span></div>
+  <div class="chip {% if n_sem %}chip-alerta{% endif %}"><span class="chip-num">{{ n_sem }}</span><span class="chip-lbl">Sem atleta (conciliar)</span></div>
+  <div class="chip"><span class="chip-num">{{ total }}</span><span class="chip-lbl">No filtro atual</span></div>
+</div>
+
+<div class="barra-acoes">
+  <form method="get" class="filtros">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <select name="campeonato" onchange="this.form.submit()">
+      <option value="">Todos os campeonatos</option>
+      {% for cp in campeonatos %}<option value="{{ cp }}" {% if cp == campeonato %}selected{% endif %}>{{ cp }}</option>{% endfor %}
+    </select>
+    <label class="chk-pill" style="cursor:pointer;">
+      <input type="checkbox" name="sem_atleta" value="1" {% if so_sem %}checked{% endif %} onchange="this.form.submit()"> só sem atleta
+    </label>
+  </form>
+  <span class="sync-info" style="color:var(--texto-suave); font-size:12px;">💡 Reimportar substitui a base. O link com o atleta é feito pelo nome.</span>
+</div>
+
+<div class="cartao tabela-wrap">
+  <table class="tabela">
+    <thead>
+      <tr><th>Atleta</th><th>Campeonato</th><th>Data</th><th>Categoria</th><th>Colocação</th><th>Pts</th></tr>
+    </thead>
+    <tbody>
+      {% for p in page %}
+      <tr>
+        <td>
+          <strong>{{ p.atleta_nome }}</strong>
+          {% if p.atleta %} <span class="tema-chip">#{{ p.atleta.player_id }}</span>
+          {% else %} <span class="badge badge-atraso" title="Nome não encontrado na base de atletas">sem atleta</span>{% endif %}
+        </td>
+        <td>{{ p.campeonato|truncatechars:30 }}</td>
+        <td>{{ p.data|date:"d/m/y"|default:"—" }}</td>
+        <td>{{ p.categoria|default:"—"|truncatechars:24 }}</td>
+        <td>{{ p.colocacao|default:"—" }}</td>
+        <td>{{ p.pontuacao|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="vazio-aviso">Nenhuma participação neste filtro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page.has_other_pages %}
+<div class="paginacao" style="margin-top:14px; justify-content:center;">
+  {% if page.has_previous %}<a class="btn btn-claro" href="?page={{ page.previous_page_number }}{% if qs_str %}&{{ qs_str }}{% endif %}"><i class="bi bi-chevron-left"></i></a>{% endif %}
+  <span class="sync-info">página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn btn-claro" href="?page={{ page.next_page_number }}{% if qs_str %}&{{ qs_str }}{% endif %}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

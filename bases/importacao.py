@@ -13,7 +13,7 @@ from io import BytesIO
 import openpyxl
 from django.db import transaction
 
-from .models import Atleta
+from .models import Atleta, Participacao
 
 # Ordem canônica das colunas (usada no export; o import aceita variações).
 COLUNAS = [
@@ -161,6 +161,104 @@ def exportar_atletas():
             else:
                 linha.append(getattr(a, campo) or "")
         ws.append(linha)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ============================ Participações ============================
+
+_COLS_PART = [
+    ("Campeonato", "campeonato"), ("Data", "data"), ("Categoria Disputada", "categoria"),
+    ("Atleta", "atleta_nome"), ("Colocação", "colocacao"), ("Pontuação", "pontuacao"),
+    ("Academia e Clube", "academia"), ("Treinador", "treinador"),
+]
+
+_HEADER_PART = {
+    "CAMPEONATO": "campeonato", "EVENTO": "campeonato",
+    "DATA": "data",
+    "CATEGORIA DISPUTADA": "categoria", "CATEGORIA": "categoria",
+    "ATLETA": "atleta_nome", "NOME": "atleta_nome", "JOGADOR": "atleta_nome",
+    "COLOCACAO": "colocacao", "RESULTADO": "colocacao", "POSICAO": "colocacao",
+    "PONTUACAO": "pontuacao", "PONTOS": "pontuacao",
+    "ACADEMIA E CLUBE": "academia", "ACADEMIA/CLUBE": "academia",
+    "CLUBE": "academia", "ACADEMIA": "academia",
+    "TREINADOR": "treinador", "PROFESSOR": "treinador",
+}
+
+
+def _int(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def importar_participacoes(caminho):
+    """Lê o .xlsx de resultados e substitui a base de participações, linkando cada
+    linha ao atleta pelo nome. Devolve (total, casados, sem_atleta)."""
+    wb = openpyxl.load_workbook(caminho, read_only=True, data_only=True)
+    ws = wb.active
+    linhas = list(ws.iter_rows(values_only=True))
+    wb.close()
+    if not linhas:
+        return 0, 0, 0
+
+    cabecalho = list(linhas[0])
+    mapa = {}
+    for i, h in enumerate(cabecalho):
+        campo = _HEADER_PART.get(_norm(h))
+        if campo and campo not in mapa:
+            mapa[campo] = i
+    if "atleta_nome" not in mapa:
+        raise ValueError("A planilha precisa de uma coluna 'Atleta'.")
+
+    por_nome = {}
+    for a in Atleta.objects.all():
+        por_nome.setdefault(_norm(a.nome), a)
+
+    objs, casados = [], 0
+    for row in linhas[1:]:
+        if row is None:
+            continue
+
+        def val(campo):
+            i = mapa.get(campo)
+            return row[i] if (i is not None and i < len(row)) else None
+
+        nome = _texto(val("atleta_nome"))
+        if not nome:
+            continue
+        atleta = por_nome.get(_norm(nome))
+        if atleta:
+            casados += 1
+        objs.append(Participacao(
+            atleta=atleta, atleta_nome=nome,
+            campeonato=_texto(val("campeonato")), data=_parse_data(val("data")),
+            categoria=_texto(val("categoria")), colocacao=_texto(val("colocacao")),
+            pontuacao=_int(val("pontuacao")), academia=_texto(val("academia")),
+            treinador=_texto(val("treinador")),
+        ))
+
+    with transaction.atomic():
+        Participacao.objects.all().delete()
+        Participacao.objects.bulk_create(objs, batch_size=1000)
+    return len(objs), casados, len(objs) - casados
+
+
+def exportar_participacoes():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Resultados"
+    ws.append([rot for rot, _ in _COLS_PART])
+    for p in Participacao.objects.select_related("atleta"):
+        ws.append([
+            p.campeonato,
+            p.data.strftime("%Y-%m-%d") if p.data else "",
+            p.categoria, p.atleta_nome, p.colocacao,
+            p.pontuacao if p.pontuacao is not None else "",
+            p.academia, p.treinador,
+        ])
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

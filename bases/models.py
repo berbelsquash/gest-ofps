@@ -44,3 +44,29 @@ class Atleta(models.Model):
     @property
     def filiado(self):
         return self.filiacao.strip().lower() == "ativo"
+
+
+class Participacao(models.Model):
+    """Participação de um atleta num evento (resultado). Ligada à Base de Atletas
+    pelo nome → atleta (que carrega o Player ID). Nome cru fica guardado para os
+    casos ainda não conciliados."""
+
+    atleta = models.ForeignKey(
+        Atleta, null=True, blank=True, on_delete=models.SET_NULL, related_name="participacoes")
+    atleta_nome = models.CharField("atleta", max_length=160)
+    campeonato = models.CharField("campeonato", max_length=160)
+    data = models.DateField("data", null=True, blank=True)
+    categoria = models.CharField("categoria disputada", max_length=120, blank=True)
+    colocacao = models.CharField("colocação", max_length=60, blank=True)
+    pontuacao = models.IntegerField("pontuação", null=True, blank=True)
+    academia = models.CharField("academia/clube", max_length=160, blank=True)
+    treinador = models.CharField("treinador", max_length=120, blank=True)
+
+    class Meta:
+        verbose_name = "participação"
+        verbose_name_plural = "participações"
+        ordering = ["-data", "campeonato", "atleta_nome"]
+        indexes = [models.Index(fields=["campeonato"]), models.Index(fields=["atleta_nome"])]
+
+    def __str__(self):
+        return f"{self.atleta_nome} · {self.campeonato}"

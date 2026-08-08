@@ -66,6 +66,12 @@ button, input, select, textarea, optgroup { font-family: inherit; }
 }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+
+/* Seletor de workspace (Painel × Bases) */
+.workspace-switch { display: flex; gap: 6px; padding: 0 14px 14px; }
+.ws-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--texto-suave); background: #eef0f5; text-decoration: none; transition: background .15s, color .15s; }
+.ws-btn:hover { color: var(--texto); }
+.ws-btn.ativo { background: var(--marca); color: #fff; box-shadow: 0 4px 12px rgba(123, 77, 255, .28); }
 .nav-grupo { display: flex; flex-direction: column; gap: 2px; }
 .nav-grupo-titulo {
   display: flex; align-items: center; justify-content: space-between;
@@ -389,6 +395,13 @@ table.tabela tfoot .linha-total td { background: #f4f7fb; border-top: 2px solid 
 .chip-valor.ativo { background: var(--marca); color: #fff; border-color: transparent; }
 tr.linha-deste td { background: #eefaf4; }
 tr.linha-doutro td { background: #fff8f0; }
+
+/* Edição inline (Base Financeira) */
+.tabela-inline td { padding-top: 7px; padding-bottom: 7px; vertical-align: middle; }
+.inline-edit { font-family: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--borda); border-radius: 8px; background: #fff; color: var(--texto); max-width: 175px; transition: border-color .15s, background .15s; }
+.inline-edit:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(123, 77, 255, .12); }
+.inline-txt { width: 150px; }
+.inline-edit.salvo { border-color: #1f9d6b; background: #eefaf4; }
 
 /* Impressão (Relatórios → PDF) */
 @media print {

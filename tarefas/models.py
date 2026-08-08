@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 from django.utils import timezone
 
@@ -71,6 +73,9 @@ class Evento(models.Model):
         help_text="encerramento das inscrições — gera os avisos de fim de inscrição")
     tipo = models.CharField("tipo", max_length=12, choices=Tipo.choices, default=Tipo.CAMPEONATO)
     tier = models.CharField("tier", max_length=20, blank=True)
+    valores = models.CharField(
+        "valores de inscrição", max_length=100, blank=True,
+        help_text="valores possíveis da inscrição, separados por vírgula (ex.: 180, 260) — usados pra linkar receitas por valor")
 
     class Meta:
         verbose_name = "evento"
@@ -79,6 +84,10 @@ class Evento(models.Model):
 
     def __str__(self):
         return self.nome
+
+    @property
+    def valores_set(self):
+        return {int(x) for x in re.split(r"[^0-9]+", self.valores or "") if x and int(x) >= 10}
 
     @property
     def checklist(self):

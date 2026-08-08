@@ -38,25 +38,40 @@ def _add_meses(d, n):
 
 @login_required
 def adimplencia(request):
-    """Aba 1 — filiados ATIVOS com status de pagamento, com filtro por tipo."""
+    """Base de Filiações — filiados com filtro de status (ativos / em dia /
+    inadimplente / cancelado) e por tipo de plano."""
     tipo_sel = request.GET.get("tipo", "")
-    qs = AssinaturaVindi.objects.exclude(tipo=PlanoVindi.Tipo.IGNORAR).exclude(status="canceled")
+    status_sel = request.GET.get("status", "")
+
+    base = AssinaturaVindi.objects.exclude(tipo=PlanoVindi.Tipo.IGNORAR)
+    if status_sel == "cancelado":
+        qs = base.filter(status="canceled")
+    elif status_sel == "inadimplente":
+        qs = base.exclude(status="canceled").filter(inadimplente_desde__isnull=False)
+    elif status_sel == "em_dia":
+        qs = base.exclude(status="canceled").filter(inadimplente_desde__isnull=True)
+    else:  # ativos (padrão)
+        qs = base.exclude(status="canceled")
     if tipo_sel:
         qs = qs.filter(tipo=tipo_sel)
     qs = qs.order_by("cliente_nome")
 
-    total = qs.count()
-    inadimplentes = qs.filter(inadimplente_desde__isnull=False).count()
-    em_dia = total - inadimplentes
+    # Visão geral (independente do filtro) para os cartões.
+    ativos = base.exclude(status="canceled")
+    n_ativos = ativos.count()
+    n_inad = ativos.filter(inadimplente_desde__isnull=False).count()
     ultima = AssinaturaVindi.objects.aggregate(m=Max("atualizado_em"))["m"]
 
     contexto = contexto_base(
         "assinaturas-adimplencia",
         assinaturas=qs,
-        total=total,
-        em_dia=em_dia,
-        inadimplentes=inadimplentes,
+        total=qs.count(),
+        n_ativos=n_ativos,
+        em_dia=n_ativos - n_inad,
+        inadimplentes=n_inad,
+        cancelados=base.filter(status="canceled").count(),
         tipo_sel=tipo_sel,
+        status_sel=status_sel,
         tipos=TIPOS_FILTRO,
         ultima_sync=ultima,
     )
