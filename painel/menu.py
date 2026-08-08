@@ -31,9 +31,9 @@ MENU = [
         ],
     },
     {
-        "titulo": "",
+        "titulo": "Bases",
         "itens": [
-            {"slug": "bases-atletas", "label": "Bases", "icone": "bi-people"},
+            {"slug": "bases-atletas", "label": "Atletas", "icone": "bi-people"},
         ],
     },
     {

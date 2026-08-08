@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from assinaturas import views as assinaturas_views
+from bases import views as bases_views
 from financeiro import views as financeiro_views
 from painel import views as painel_views
 from tarefas import views as tarefas_views
@@ -24,6 +25,9 @@ urlpatterns = [
     path("tarefas/<int:pk>/toggle/", tarefas_views.tarefa_toggle, name="tarefa_toggle"),
     path("s/projetos/", tarefas_views.projetos_lista, name="projetos_lista"),
     path("projetos/<int:pk>/", tarefas_views.projeto_detalhe, name="projeto_detalhe"),
+    path("s/bases-atletas/", bases_views.atletas_lista, name="bases_atletas"),
+    path("bases/atletas/importar/", bases_views.importar_atletas_view, name="bases_atletas_importar"),
+    path("bases/atletas/exportar/", bases_views.exportar_atletas_view, name="bases_atletas_exportar"),
     # Abas com tela própria (precisam vir ANTES da rota genérica).
     path("s/assinaturas-adimplencia/", assinaturas_views.adimplencia, name="assinaturas_adimplencia"),
     path("s/recebimentos/", assinaturas_views.recebimentos, name="recebimentos"),
