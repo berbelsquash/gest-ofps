@@ -47,6 +47,8 @@
 </div>
 
 <datalist id="dl-eventos">{% for nome in eventos_nomes %}<option value="{{ nome }}">{% endfor %}</datalist>
+<datalist id="dl-sub-receita">{% for s in sub_receita %}<option value="{{ s }}">{% endfor %}</datalist>
+<datalist id="dl-sub-despesa">{% for s in sub_despesa %}<option value="{{ s }}">{% endfor %}</datalist>
 {% csrf_token %}
 
 <div class="cartao tabela-wrap">
@@ -63,10 +65,10 @@
         <td>
           <select class="inline-edit" data-id="{{ l.id }}" data-campo="grupo">
             <option value="">—</option>
-            {% for g in grupos %}<option value="{{ g }}" {% if g == l.grupo %}selected{% endif %}>{{ g }}</option>{% endfor %}
+            {% for g in l.cat_opcoes %}<option value="{{ g }}" {% if g == l.grupo %}selected{% endif %}>{{ g }}</option>{% endfor %}
           </select>
         </td>
-        <td><input class="inline-edit inline-txt" data-id="{{ l.id }}" data-campo="categoria" value="{{ l.categoria }}" placeholder="—"></td>
+        <td><input class="inline-edit inline-txt" data-id="{{ l.id }}" data-campo="categoria" list="dl-sub-{{ l.tipo }}" value="{{ l.categoria }}" placeholder="—"></td>
         <td><input class="inline-edit inline-txt" data-id="{{ l.id }}" data-campo="evento" list="dl-eventos" value="{{ l.evento }}" placeholder="—"></td>
       </tr>
       {% empty %}

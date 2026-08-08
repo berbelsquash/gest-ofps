@@ -15,6 +15,7 @@ from financeiro.models import GRUPOS, LancamentoBancario
 from painel.menu import contexto_base
 from tarefas.models import Evento
 
+from .categorias import CATEGORIAS, SUBCATEGORIAS, categorias_todas
 from .importacao import (exportar_atletas, exportar_participacoes,
                          importar_atletas, importar_participacoes)
 from .models import Atleta, Participacao
@@ -137,15 +138,21 @@ def base_financeira(request):
     page = Paginator(qs, 80).get_page(request.GET.get("page"))
     for l in page:
         l.valor_abs = abs(l.valor)
+        cats = CATEGORIAS.get(l.tipo, [])
+        # opções da categoria = taxonomia do tipo + o valor atual (se for antigo)
+        l.cat_opcoes = cats + ([l.grupo] if l.grupo and l.grupo not in cats else [])
     params = request.GET.copy()
     params.pop("page", None)
 
     base = LancamentoBancario.objects.all()
+    existentes = set(base.exclude(grupo="").values_list("grupo", flat=True))
+    grupos_filtro = categorias_todas() + sorted(existentes - set(categorias_todas()))
     contexto = contexto_base(
         "bases-financeiro",
         page=page, total=total, qs_str=params.urlencode(),
         tipo=tipo, grupo=grupo, evento_f=evento_f, mes=mes, q=q, sem_evento=sem_evento,
-        grupos=[g[0] for g in GRUPOS], eventos_nomes=_eventos_nomes(),
+        grupos=grupos_filtro, eventos_nomes=_eventos_nomes(),
+        sub_receita=SUBCATEGORIAS["receita"], sub_despesa=SUBCATEGORIAS["despesa"],
         meses=list(enumerate(_MESES, start=1)),
         n_total=base.count(), sem_evento_total=base.filter(evento="").count(),
         ultima=base.aggregate(m=Max("importado_em"))["m"],
