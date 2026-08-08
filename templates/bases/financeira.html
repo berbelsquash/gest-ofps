@@ -69,7 +69,7 @@
           </select>
         </td>
         <td><input class="inline-edit inline-txt" data-id="{{ l.id }}" data-campo="categoria" list="dl-sub-{{ l.tipo }}" value="{{ l.categoria }}" placeholder="—"></td>
-        <td><input class="inline-edit inline-txt" data-id="{{ l.id }}" data-campo="evento" list="dl-eventos" value="{{ l.evento }}" placeholder="—"></td>
+        <td><input class="inline-edit inline-txt inline-evento" data-id="{{ l.id }}" data-campo="evento" list="dl-eventos" value="{{ l.evento }}" placeholder="{% if l.grupo == 'Eventos' %}—{% else %}só p/ Eventos{% endif %}"{% if l.grupo != 'Eventos' %} disabled{% endif %}></td>
       </tr>
       {% empty %}
       <tr><td colspan="6" class="vazio-aviso">Nenhum lançamento neste filtro.</td></tr>
@@ -94,16 +94,29 @@
 (function () {
   var token = document.querySelector('input[name=csrfmiddlewaretoken]').value;
   var url = "{% url 'bases_lancamento_inline' %}";
+  function salvar(el) {
+    var body = new URLSearchParams({ id: el.dataset.id, campo: el.dataset.campo, valor: el.value });
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': token },
+      body: body.toString()
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ok) { el.classList.add('salvo'); setTimeout(function () { el.classList.remove('salvo'); }, 900); }
+    }).catch(function () {});
+  }
   document.querySelectorAll('.inline-edit').forEach(function (el) {
     el.addEventListener('change', function () {
-      var body = new URLSearchParams({ id: el.dataset.id, campo: el.dataset.campo, valor: el.value });
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': token },
-        body: body.toString()
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) { el.classList.add('salvo'); setTimeout(function () { el.classList.remove('salvo'); }, 900); }
-      }).catch(function () {});
+      salvar(el);
+      // Evento só vale pra categoria "Eventos": habilita/desabilita e limpa
+      if (el.dataset.campo === 'grupo') {
+        var ev = el.closest('tr').querySelector('.inline-evento');
+        if (ev) {
+          var isEv = el.value === 'Eventos';
+          ev.disabled = !isEv;
+          ev.placeholder = isEv ? '—' : 'só p/ Eventos';
+          if (!isEv && ev.value) { ev.value = ''; }
+        }
+      }
     });
   });
 })();

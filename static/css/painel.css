@@ -402,6 +402,7 @@ tr.linha-doutro td { background: #fff8f0; }
 .inline-edit:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(123, 77, 255, .12); }
 .inline-txt { width: 150px; }
 .inline-edit.salvo { border-color: #1f9d6b; background: #eefaf4; }
+.inline-edit:disabled { background: #f2f3f5; color: #aeb4c0; border-style: dashed; cursor: not-allowed; }
 
 /* Impressão (Relatórios → PDF) */
 @media print {

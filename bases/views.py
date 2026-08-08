@@ -164,16 +164,23 @@ def base_financeira(request):
 @require_POST
 def lancamento_inline(request):
     """Salva Categoria (grupo) / Subcategoria (categoria) / Evento de um
-    lançamento direto da linha (edição inline, via AJAX)."""
+    lançamento direto da linha. Evento só é permitido quando a categoria é
+    'Eventos'; ao trocar a categoria para outra, o evento é limpo."""
     obj = LancamentoBancario.objects.filter(pk=request.POST.get("id")).first()
     campo = request.POST.get("campo")
     valor = (request.POST.get("valor") or "").strip()
     if not obj or campo not in ("grupo", "categoria", "evento"):
         return JsonResponse({"ok": False}, status=400)
+    if campo == "evento" and obj.grupo != "Eventos":
+        return JsonResponse({"ok": False, "erro": "Evento só na categoria Eventos."}, status=400)
     setattr(obj, campo, valor)
     obj.revisado = True
-    obj.save(update_fields=[campo, "revisado"])
-    return JsonResponse({"ok": True})
+    campos = {campo, "revisado"}
+    if campo == "grupo" and valor != "Eventos" and obj.evento:
+        obj.evento = ""
+        campos.add("evento")
+    obj.save(update_fields=list(campos))
+    return JsonResponse({"ok": True, "evento_limpo": campo == "grupo" and "evento" in campos})
 
 
 @login_required
@@ -186,8 +193,9 @@ def reconhecer_eventos(request):
     eventos = [e for e in Evento.objects.exclude(tipo=Evento.Tipo.LIGA) if e.data_inicio]
     n_desp = n_rec = 0
 
+    # só lançamentos categorizados como "Eventos" podem receber evento
     for l in (LancamentoBancario.objects
-              .filter(evento="", tipo="despesa", grupo="Torneios").exclude(data__isnull=True)):
+              .filter(evento="", grupo="Eventos", tipo="despesa").exclude(data__isnull=True)):
         achados = {e.nome for e in eventos
                    if (e.data_inicio - timedelta(days=5))
                    <= l.data <= ((e.data_fim or e.data_inicio) + timedelta(days=5))}
@@ -198,7 +206,7 @@ def reconhecer_eventos(request):
             n_desp += 1
 
     for l in (LancamentoBancario.objects
-              .filter(evento="", tipo="receita").exclude(data__isnull=True)):
+              .filter(evento="", grupo="Eventos", tipo="receita").exclude(data__isnull=True)):
         v = int(round(abs(float(l.valor))))
         achados = {e.nome for e in eventos
                    if v in e.valores_set
