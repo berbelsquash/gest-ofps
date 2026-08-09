@@ -1,0 +1,45 @@
+{% comment %}Conteúdo do popup do evento (AJAX): infos + tarefas editáveis.{% endcomment %}
+<form method="post" action="{% url 'bases_evento_editar' %}" class="ev-info-form">
+  {% csrf_token %}
+  <input type="hidden" name="id" value="{{ evento.id }}">
+  <div class="form-grade">
+    <label class="col-2">Nome<input type="text" name="nome" value="{{ evento.nome }}" required></label>
+    <label>Tipo
+      <select name="tipo">{% for val, lbl in tipos %}<option value="{{ val }}" {% if val == evento.tipo %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+    </label>
+    <label>Tier<input type="text" name="tier" value="{{ evento.tier }}" placeholder="ex: Gold"></label>
+    <label>Início<input type="date" name="data_inicio" value="{{ evento.data_inicio|date:'Y-m-d' }}"></label>
+    <label>Fim<input type="date" name="data_fim" value="{{ evento.data_fim|date:'Y-m-d' }}"></label>
+    <label>Inscrições até<input type="date" name="inscricoes_ate" value="{{ evento.inscricoes_ate|date:'Y-m-d' }}"></label>
+    <label class="col-2">Valores de inscrição<input type="text" name="valores" value="{{ evento.valores }}" placeholder="ex.: 180, 260"></label>
+  </div>
+  <div style="text-align:right; margin-top:10px;"><button type="submit" class="btn btn-claro"><i class="bi bi-check-lg"></i> Salvar infos</button></div>
+</form>
+
+<div class="ev-tarefas-titulo"><i class="bi bi-list-check"></i> Tarefas do evento <span class="grupo-count">{{ tarefas|length }}</span></div>
+<div class="cartao tabela-wrap">
+  <table class="tabela tabela-tarefas-ev">
+    <thead><tr><th></th><th>Tarefa</th><th>Data</th><th>Responsáveis</th><th></th></tr></thead>
+    <tbody>
+      {% for t in tarefas %}
+      <tr data-tid="{{ t.id }}" class="{% if t.feita %}feita{% endif %}">
+        <td><input type="checkbox" class="ev-feita" {% if t.feita %}checked{% endif %} title="Marcar feita"></td>
+        <td><input type="text" class="ev-campo ev-titulo" data-campo="titulo" value="{{ t.titulo }}"></td>
+        <td><input type="date" class="ev-campo ev-prazo" data-campo="prazo" value="{{ t.prazo|date:'Y-m-d' }}"></td>
+        <td class="ev-resp">
+          {% for p in pessoas %}<label class="chk-mini" title="{{ p.nome }}"><input type="checkbox" class="ev-resp-chk" data-pid="{{ p.id }}" {% if p in t.responsaveis.all %}checked{% endif %}>{{ p.iniciais }}</label>{% endfor %}
+        </td>
+        <td><button type="button" class="btn-linha btn-linha-perigo ev-excluir" title="Excluir tarefa"><i class="bi bi-trash"></i></button></td>
+      </tr>
+      {% empty %}
+      <tr class="ev-vazio"><td colspan="5" class="tarefa-vazio">Sem tarefas ainda. Adicione abaixo.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="ev-add-linha" data-evento="{{ evento.id }}">
+  <input type="text" class="ev-nova-titulo" placeholder="nova tarefa…">
+  <input type="date" class="ev-nova-data">
+  <button type="button" class="btn btn-grad ev-add-btn"><i class="bi bi-plus-lg"></i> Adicionar tarefa</button>
+</div>

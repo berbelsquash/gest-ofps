@@ -404,6 +404,25 @@ tr.linha-doutro td { background: #fff8f0; }
 .inline-edit.salvo { border-color: #1f9d6b; background: #eefaf4; }
 .inline-edit:disabled { background: #f2f3f5; color: #aeb4c0; border-style: dashed; cursor: not-allowed; }
 
+/* Popup de evento + tarefas (Base de Eventos) */
+.modal-grande { max-width: 840px; width: 94vw; }
+.modal-corpo { max-height: 74vh; overflow-y: auto; padding: 2px; }
+.carregando { padding: 40px; text-align: center; color: var(--texto-suave); }
+.ev-tarefas-titulo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin: 18px 0 6px; color: var(--texto); }
+.tabela-tarefas-ev td { padding: 6px 12px; vertical-align: middle; }
+.tabela-tarefas-ev th { padding: 8px 12px; }
+.ev-campo { font-family: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--borda); border-radius: 8px; background: #fff; color: var(--texto); }
+.ev-titulo { width: 100%; min-width: 170px; }
+.ev-campo.salvo { border-color: #1f9d6b; background: #eefaf4; }
+.ev-resp { white-space: nowrap; }
+.chk-mini { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--texto-suave); margin-right: 5px; cursor: pointer; padding: 2px 5px; border-radius: 6px; }
+.chk-mini input { accent-color: var(--marca-ini); margin: 0; }
+.chk-mini.salvo { background: #eefaf4; }
+tr.feita .ev-titulo { text-decoration: line-through; color: var(--texto-suave); }
+.ev-add-linha { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.ev-add-linha input { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 9px; }
+.ev-nova-titulo { flex: 1 1 200px; }
+
 /* Impressão (Relatórios → PDF) */
 @media print {
   .sidebar, .topbar, .barra-acoes, .link-admin, .mensagens, .sidebar-rodape { display: none !important; }

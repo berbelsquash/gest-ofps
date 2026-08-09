@@ -7,13 +7,13 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Max, Min, Q, Sum
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from financeiro.models import GRUPOS, LancamentoBancario
 from painel.menu import contexto_base
-from tarefas.models import Evento
+from tarefas.models import Evento, Pessoa, Tarefa
 
 from .categorias import CATEGORIAS, SUBCATEGORIAS, categorias_todas
 from .importacao import (exportar_atletas, exportar_participacoes,
@@ -25,6 +25,14 @@ def _eventos_nomes():
     """Nomes dos eventos da base (não-liga), do mais recente ao mais antigo."""
     return list(Evento.objects.exclude(tipo=Evento.Tipo.LIGA)
                 .order_by("-data_inicio").values_list("nome", flat=True))
+
+
+def _pdate(v):
+    v = (v or "").strip()
+    try:
+        return date.fromisoformat(v) if v else None
+    except ValueError:
+        return None
 
 
 @login_required
@@ -277,7 +285,93 @@ def evento_editar(request):
         ev.inscricoes_ate = d("inscricoes_ate")
         ev.save()
         messages.success(request, f"Evento atualizado: {ev.nome}.")
+        return redirect(f"/s/bases-eventos/?abrir={ev.id}")
     return redirect("bases_eventos")
+
+
+@login_required
+@require_POST
+def evento_criar(request):
+    """Cria um evento e já gera as tarefas dele (checklist + comunicações)."""
+    from tarefas.gerar import gerar_para_evento
+    nome = (request.POST.get("nome") or "").strip()
+    if not nome:
+        messages.error(request, "O evento precisa de um nome.")
+        return redirect("bases_eventos")
+    if Evento.objects.filter(nome=nome).exists():
+        messages.error(request, "Já existe um evento com esse nome.")
+        return redirect("bases_eventos")
+    ev = Evento.objects.create(
+        nome=nome, tipo=request.POST.get("tipo") or Evento.Tipo.CAMPEONATO,
+        tier=(request.POST.get("tier") or "").strip(),
+        valores=(request.POST.get("valores") or "").strip(),
+        data_inicio=_pdate(request.POST.get("data_inicio")),
+        data_fim=_pdate(request.POST.get("data_fim")),
+        inscricoes_ate=_pdate(request.POST.get("inscricoes_ate")))
+    nc, nm = gerar_para_evento(ev)
+    messages.success(
+        request, f"Evento “{nome}” criado com {nc + nm} tarefas geradas "
+        "(checklist + comunicações). Ajuste ou exclua o que precisar.")
+    return redirect(f"/s/bases-eventos/?abrir={ev.id}")
+
+
+@login_required
+def evento_painel(request, pk):
+    """Conteúdo do popup do evento: infos + tarefas (carregado via AJAX)."""
+    ev = get_object_or_404(Evento, pk=pk)
+    tarefas = list(ev.tarefas.prefetch_related("responsaveis").order_by("prazo", "ordem", "id"))
+    contexto = {
+        "evento": ev, "tarefas": tarefas,
+        "pessoas": Pessoa.objects.filter(ativo=True),
+        "tipos": Evento.Tipo.choices,
+    }
+    return render(request, "bases/_evento_painel.html", contexto)
+
+
+@login_required
+@require_POST
+def evento_tarefa_salvar(request):
+    """Edita um campo de uma tarefa de evento (título, data, responsável, feita)."""
+    t = Tarefa.objects.filter(pk=request.POST.get("id")).first()
+    if not t:
+        return JsonResponse({"ok": False}, status=400)
+    campo = request.POST.get("campo")
+    if campo == "titulo":
+        t.titulo = (request.POST.get("valor") or "").strip() or t.titulo
+        t.save(update_fields=["titulo"])
+    elif campo == "prazo":
+        t.prazo = _pdate(request.POST.get("valor"))
+        t.save(update_fields=["prazo"])
+    elif campo == "responsavel":
+        pid = request.POST.get("valor")
+        if request.POST.get("marcado") == "1":
+            t.responsaveis.add(pid)
+        else:
+            t.responsaveis.remove(pid)
+    elif campo == "feita":
+        t.marcar(request.POST.get("valor") == "1")
+    else:
+        return JsonResponse({"ok": False}, status=400)
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def evento_tarefa_excluir(request):
+    Tarefa.objects.filter(pk=request.POST.get("id")).exclude(evento__isnull=True).delete()
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def evento_tarefa_add(request):
+    ev = Evento.objects.filter(pk=request.POST.get("evento")).first()
+    if not ev:
+        return JsonResponse({"ok": False}, status=400)
+    Tarefa.objects.create(
+        titulo=(request.POST.get("titulo") or "Nova tarefa").strip(),
+        tipo=Tarefa.Tipo.EVENTO, evento=ev, prazo=_pdate(request.POST.get("prazo")))
+    return JsonResponse({"ok": True})
 
 
 @login_required
