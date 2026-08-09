@@ -216,10 +216,15 @@ def reconhecer_eventos(request):
     for l in (LancamentoBancario.objects
               .filter(evento="", grupo="Eventos", tipo="receita").exclude(data__isnull=True)):
         v = int(round(abs(float(l.valor))))
-        achados = {e.nome for e in eventos
-                   if v in e.valores_set
-                   and (e.data_inicio - timedelta(days=45))
-                   <= l.data <= ((e.data_fim or e.data_inicio) + timedelta(days=5))}
+        achados = set()
+        for e in eventos:
+            if v not in e.valores_set:
+                continue
+            # janela de inscrições (recebimentos das inscrições caem aqui)
+            ini = e.inscricoes_de or (e.data_inicio - timedelta(days=45))
+            fim = (e.inscricoes_ate or e.data_inicio) + timedelta(days=5)
+            if ini <= l.data <= fim:
+                achados.add(e.nome)
         if len(achados) == 1:
             l.evento = achados.pop()
             l.revisado = True
@@ -239,11 +244,15 @@ def eventos_base(request):
     financeiro e o vínculo das participações). Filtro de próximos/todos/passados."""
     tipo = request.GET.get("tipo", "")
     quando = request.GET.get("quando", "proximos")
+    secao = request.GET.get("secao", "eventos")  # "eventos" (torneios) ou "liga"
     hoje = timezone.localdate()
 
-    qs = Evento.objects.all()
-    if tipo:
-        qs = qs.filter(tipo=tipo)
+    if secao == "liga":
+        qs = Evento.objects.filter(tipo=Evento.Tipo.LIGA)
+    else:
+        qs = Evento.objects.exclude(tipo=Evento.Tipo.LIGA)
+        if tipo:
+            qs = qs.filter(tipo=tipo)
     if quando == "proximos":
         qs = qs.filter(Q(data_fim__gte=hoje) | Q(data_fim__isnull=True, data_inicio__gte=hoje)
                        ).order_by("data_inicio", "nome")
@@ -256,8 +265,10 @@ def eventos_base(request):
     for e in eventos:
         e.n_tarefas = e.tarefas.count()
     contexto = contexto_base(
-        "bases-eventos", eventos=eventos, tipo=tipo, quando=quando,
-        tipos=Evento.Tipo.choices, total=Evento.objects.count(),
+        "bases-eventos", eventos=eventos, tipo=tipo, quando=quando, secao=secao,
+        tipos=[t for t in Evento.Tipo.choices if t[0] != Evento.Tipo.LIGA],
+        total=Evento.objects.exclude(tipo=Evento.Tipo.LIGA).count(),
+        total_liga=Evento.objects.filter(tipo=Evento.Tipo.LIGA).count(),
     )
     return render(request, "bases/eventos.html", contexto)
 
@@ -282,6 +293,7 @@ def evento_editar(request):
         ev.valores = (request.POST.get("valores") or "").strip()
         ev.data_inicio = d("data_inicio")
         ev.data_fim = d("data_fim")
+        ev.inscricoes_de = d("inscricoes_de")
         ev.inscricoes_ate = d("inscricoes_ate")
         ev.save()
         messages.success(request, f"Evento atualizado: {ev.nome}.")
@@ -307,6 +319,7 @@ def evento_criar(request):
         valores=(request.POST.get("valores") or "").strip(),
         data_inicio=_pdate(request.POST.get("data_inicio")),
         data_fim=_pdate(request.POST.get("data_fim")),
+        inscricoes_de=_pdate(request.POST.get("inscricoes_de")),
         inscricoes_ate=_pdate(request.POST.get("inscricoes_ate")))
     nc, nm = gerar_para_evento(ev)
     messages.success(

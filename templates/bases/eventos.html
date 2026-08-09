@@ -6,25 +6,31 @@
 <input type="hidden" id="csrf-eventos" value="{{ csrf_token }}">
 <div class="barra-acoes">
   <div class="toggle-rd">
-    <a href="?quando=proximos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'proximos' %}ativo{% endif %}">Próximos</a>
-    <a href="?quando=todos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'todos' %}ativo{% endif %}">Todos</a>
-    <a href="?quando=passados{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'passados' %}ativo{% endif %}">Passados</a>
+    <a href="?secao=eventos" class="btn-toggle {% if secao != 'liga' %}ativo{% endif %}">Eventos <span class="grupo-count">{{ total }}</span></a>
+    <a href="?secao=liga" class="btn-toggle {% if secao == 'liga' %}ativo{% endif %}">Liga <span class="grupo-count">{{ total_liga }}</span></a>
   </div>
-  <div class="barra-acoes-dir">
-    <form method="get" class="filtros">
-      <input type="hidden" name="quando" value="{{ quando }}">
-      <select name="tipo" onchange="this.form.submit()">
-        <option value="">Todos os tipos</option>
-        {% for val, lbl in tipos %}<option value="{{ val }}" {% if val == tipo %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
-      </select>
-    </form>
-    <button type="button" class="btn btn-grad" id="abrir-novo-evento"><i class="bi bi-plus-lg"></i> Novo evento</button>
-  </div>
+  {% if secao != 'liga' %}
+  <button type="button" class="btn btn-grad" id="abrir-novo-evento"><i class="bi bi-plus-lg"></i> Novo evento</button>
+  {% endif %}
 </div>
 
-<div class="resumo-chips">
-  <div class="chip"><span class="chip-num">{{ total }}</span><span class="chip-lbl">Eventos cadastrados</span></div>
-  <div class="chip"><span class="chip-num">{{ eventos|length }}</span><span class="chip-lbl">No filtro atual</span></div>
+<div class="barra-acoes">
+  <div class="toggle-rd">
+    <a href="?secao={{ secao }}&quando=proximos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'proximos' %}ativo{% endif %}">Próximos</a>
+    <a href="?secao={{ secao }}&quando=todos{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'todos' %}ativo{% endif %}">Todos</a>
+    <a href="?secao={{ secao }}&quando=passados{% if tipo %}&tipo={{ tipo }}{% endif %}" class="btn-toggle {% if quando == 'passados' %}ativo{% endif %}">Passados</a>
+  </div>
+  {% if secao != 'liga' %}
+  <form method="get" class="filtros">
+    <input type="hidden" name="secao" value="{{ secao }}">
+    <input type="hidden" name="quando" value="{{ quando }}">
+    <select name="tipo" onchange="this.form.submit()">
+      <option value="">Todos os tipos</option>
+      {% for val, lbl in tipos %}<option value="{{ val }}" {% if val == tipo %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+    </select>
+  </form>
+  {% endif %}
+  <span class="sync-info" style="color:var(--texto-suave); font-size:13px;">{{ eventos|length }} no filtro</span>
 </div>
 
 <div class="cartao tabela-wrap">
@@ -69,8 +75,9 @@
         <label class="col-2">Nome<input type="text" name="nome" required placeholder="ex: Bio por Cento Open 2026"></label>
         <label>Tipo<select name="tipo">{% for val, lbl in tipos %}<option value="{{ val }}">{{ lbl }}</option>{% endfor %}</select></label>
         <label>Tier<input type="text" name="tier" placeholder="ex: Gold"></label>
-        <label>Início<input type="date" name="data_inicio"></label>
-        <label>Fim<input type="date" name="data_fim"></label>
+        <label>Início do torneio<input type="date" name="data_inicio"></label>
+        <label>Fim do torneio<input type="date" name="data_fim"></label>
+        <label>Inscrições de<input type="date" name="inscricoes_de"></label>
         <label>Inscrições até<input type="date" name="inscricoes_ate"></label>
         <label class="col-2">Valores de inscrição<input type="text" name="valores" placeholder="ex.: 180, 260"></label>
       </div>

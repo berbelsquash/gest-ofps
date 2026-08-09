@@ -66,8 +66,11 @@ class Evento(models.Model):
         OUTRO = "outro", "Outro"
 
     nome = models.CharField("nome", max_length=120, unique=True)
-    data_inicio = models.DateField("início", null=True, blank=True)
-    data_fim = models.DateField("fim", null=True, blank=True)
+    data_inicio = models.DateField("início do torneio", null=True, blank=True)
+    data_fim = models.DateField("fim do torneio", null=True, blank=True)
+    inscricoes_de = models.DateField(
+        "inscrições de", null=True, blank=True,
+        help_text="abertura das inscrições — início da janela de reconhecimento de receitas")
     inscricoes_ate = models.DateField(
         "inscrições até", null=True, blank=True,
         help_text="encerramento das inscrições — gera os avisos de fim de inscrição")

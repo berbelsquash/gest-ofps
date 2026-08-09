@@ -8,8 +8,9 @@
       <select name="tipo">{% for val, lbl in tipos %}<option value="{{ val }}" {% if val == evento.tipo %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
     </label>
     <label>Tier<input type="text" name="tier" value="{{ evento.tier }}" placeholder="ex: Gold"></label>
-    <label>Início<input type="date" name="data_inicio" value="{{ evento.data_inicio|date:'Y-m-d' }}"></label>
-    <label>Fim<input type="date" name="data_fim" value="{{ evento.data_fim|date:'Y-m-d' }}"></label>
+    <label>Início do torneio<input type="date" name="data_inicio" value="{{ evento.data_inicio|date:'Y-m-d' }}"></label>
+    <label>Fim do torneio<input type="date" name="data_fim" value="{{ evento.data_fim|date:'Y-m-d' }}"></label>
+    <label>Inscrições de<input type="date" name="inscricoes_de" value="{{ evento.inscricoes_de|date:'Y-m-d' }}"></label>
     <label>Inscrições até<input type="date" name="inscricoes_ate" value="{{ evento.inscricoes_ate|date:'Y-m-d' }}"></label>
     <label class="col-2">Valores de inscrição<input type="text" name="valores" value="{{ evento.valores }}" placeholder="ex.: 180, 260"></label>
   </div>
