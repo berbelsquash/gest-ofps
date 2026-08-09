@@ -19,13 +19,23 @@
         {% endif %}
       {% endfor %}
     </select>
+    <select name="atleta" onchange="this.form.submit()">
+      <option value="">Todos (atleta ou não)</option>
+      <option value="sem" {% if atleta_sel == 'sem' %}selected{% endif %}>Sem atleta (conciliar)</option>
+    </select>
     <noscript><button class="btn btn-claro" type="submit">Filtrar</button></noscript>
   </form>
 
-  <form method="post" action="{% url 'assinaturas_sincronizar' %}">
-    {% csrf_token %}
-    <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar com a Vindi</button>
-  </form>
+  <div class="barra-acoes-dir">
+    <form method="post" action="{% url 'assinaturas_conciliar' %}">
+      {% csrf_token %}
+      <button class="btn btn-claro" type="submit" title="Liga as assinaturas aos atletas pelo nome"><i class="bi bi-link-45deg"></i> Conciliar com atletas</button>
+    </form>
+    <form method="post" action="{% url 'assinaturas_sincronizar' %}">
+      {% csrf_token %}
+      <button class="btn btn-grad" type="submit"><i class="bi bi-arrow-repeat"></i> Sincronizar Vindi</button>
+    </form>
+  </div>
 </div>
 
 <div class="resumo-chips">
@@ -33,6 +43,7 @@
   <div class="chip chip-ok"><span class="chip-num">{{ em_dia }}</span><span class="chip-lbl">Em dia</span></div>
   <div class="chip chip-alerta"><span class="chip-num">{{ inadimplentes }}</span><span class="chip-lbl">Inadimplentes</span></div>
   <div class="chip"><span class="chip-num">{{ cancelados }}</span><span class="chip-lbl">Cancelados</span></div>
+  <div class="chip"><span class="chip-num">{{ conciliados }}</span><span class="chip-lbl">Ligados a atleta ({{ sem_atleta }} sem)</span></div>
 </div>
 
 <div class="cartao">
@@ -46,6 +57,7 @@
     <thead>
       <tr>
         <th>Nome</th>
+        <th>Atleta (base)</th>
         <th>Plano</th>
         <th>Tipo</th>
         <th>Data de filiação</th>
@@ -56,6 +68,10 @@
       {% for a in assinaturas %}
       <tr>
         <td>{{ a.cliente_nome|default:"—" }}</td>
+        <td>
+          {% if a.atleta %}<span class="tema-chip">#{{ a.atleta.player_id }}</span> {{ a.atleta.nome|truncatechars:22 }}
+          {% else %}<span class="badge badge-atraso">sem atleta</span>{% endif %}
+        </td>
         <td>{{ a.plano_nome|default:"—" }}</td>
         <td><span class="badge badge-tipo">{{ a.get_tipo_display }}</span></td>
         <td>{{ a.data_inicio|date:"d/m/Y"|default:"—" }}</td>

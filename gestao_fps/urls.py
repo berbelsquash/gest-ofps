@@ -42,6 +42,7 @@ urlpatterns = [
     path("s/inadimplencia-cancelamentos/", assinaturas_views.inadimplencia, name="inadimplencia_cancelamentos"),
     path("s/resumo-assinaturas/", assinaturas_views.resumo, name="resumo_assinaturas"),
     path("assinaturas/sincronizar/", assinaturas_views.sincronizar, name="assinaturas_sincronizar"),
+    path("assinaturas/conciliar/", assinaturas_views.conciliar_vindi_view, name="assinaturas_conciliar"),
     path("s/financeiro-despesas/", financeiro_views.despesas, name="financeiro_despesas"),
     path("s/financeiro-receitas/", financeiro_views.receitas, name="financeiro_receitas"),
     path("s/financeiro-receitas-despesas/", financeiro_views.receitas_despesas, name="financeiro_receitas_despesas"),

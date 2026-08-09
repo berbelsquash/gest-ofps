@@ -42,6 +42,7 @@ def adimplencia(request):
     inadimplente / cancelado) e por tipo de plano."""
     tipo_sel = request.GET.get("tipo", "")
     status_sel = request.GET.get("status", "")
+    atleta_sel = request.GET.get("atleta", "")
 
     base = AssinaturaVindi.objects.exclude(tipo=PlanoVindi.Tipo.IGNORAR)
     if status_sel == "cancelado":
@@ -54,12 +55,15 @@ def adimplencia(request):
         qs = base.exclude(status="canceled")
     if tipo_sel:
         qs = qs.filter(tipo=tipo_sel)
-    qs = qs.order_by("cliente_nome")
+    if atleta_sel == "sem":
+        qs = qs.filter(atleta__isnull=True)
+    qs = qs.select_related("atleta").order_by("cliente_nome")
 
     # Visão geral (independente do filtro) para os cartões.
     ativos = base.exclude(status="canceled")
     n_ativos = ativos.count()
     n_inad = ativos.filter(inadimplente_desde__isnull=False).count()
+    n_link = ativos.exclude(atleta__isnull=True).count()
     ultima = AssinaturaVindi.objects.aggregate(m=Max("atualizado_em"))["m"]
 
     contexto = contexto_base(
@@ -70,12 +74,27 @@ def adimplencia(request):
         em_dia=n_ativos - n_inad,
         inadimplentes=n_inad,
         cancelados=base.filter(status="canceled").count(),
+        conciliados=n_link,
+        sem_atleta=n_ativos - n_link,
         tipo_sel=tipo_sel,
         status_sel=status_sel,
+        atleta_sel=atleta_sel,
         tipos=TIPOS_FILTRO,
         ultima_sync=ultima,
     )
     return render(request, "assinaturas/adimplencia.html", contexto)
+
+
+@login_required
+def conciliar_vindi_view(request):
+    """Roda a conciliação Vindi ↔ Atletas (liga por nome/e-mail)."""
+    if request.method == "POST":
+        from bases.conciliacao import conciliar_vindi
+        linkadas, sem, total = conciliar_vindi()
+        messages.success(
+            request, f"Conciliação: {linkadas} de {total} assinaturas ligadas a atletas "
+            f"({sem} sem atleta).")
+    return redirect("assinaturas_adimplencia")
 
 
 @login_required

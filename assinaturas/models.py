@@ -44,6 +44,9 @@ class AssinaturaVindi(models.Model):
         "tipo", max_length=20, choices=PlanoVindi.Tipo.choices, default=PlanoVindi.Tipo.OUTROS
     )
     status = models.CharField("status", max_length=20, blank=True)
+    atleta = models.ForeignKey(
+        "bases.Atleta", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assinaturas_vindi", verbose_name="atleta (conciliação)")
     valor_ciclo = models.DecimalField("valor por cobrança (R$)", max_digits=12, decimal_places=2, default=0)
     intervalo_meses = models.PositiveIntegerField("intervalo (meses)", default=1)
     data_inicio = models.DateField("data de filiação", null=True, blank=True)
