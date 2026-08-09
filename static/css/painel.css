@@ -354,7 +354,8 @@ table.tabela-grad td.col-total { text-align: center; }
 @media (max-width: 760px) { .detalhe-grid { grid-template-columns: 1fr; } }
 
 /* --------------------------------------------------------------- Tarefas */
-.chip-pessoa { text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.chip-pessoa { flex: 0 0 200px; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.chip-pessoa .chip-topo { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .chip-pessoa:hover { border-color: var(--marca-ini); }
 .chip-pessoa.chip-ativa { border-color: var(--marca-ini); box-shadow: 0 0 0 2px rgba(123, 77, 255, .18); }
 .chip-topo { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texto-suave); margin-bottom: 8px; }
@@ -440,6 +441,8 @@ tr.feita .ev-titulo { text-decoration: line-through; color: var(--texto-suave); 
 .check-btn:hover { color: var(--marca-ini); }
 .tarefa-row.feita .check-btn { color: var(--ok); }
 .tarefa-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.js-editar-tarefa { cursor: pointer; }
+.js-editar-tarefa:hover .tarefa-titulo { color: var(--marca-ini); text-decoration: underline; }
 .tarefa-titulo { font-size: 14px; color: var(--texto); }
 .tarefa-row.feita .tarefa-titulo { text-decoration: line-through; color: var(--texto-suave); }
 .tarefa-meta { font-size: 12px; color: var(--texto-suave); }

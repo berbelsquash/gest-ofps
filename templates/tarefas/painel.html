@@ -38,6 +38,7 @@
     <a href="?status=afazer{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'afazer' %}ativo{% endif %}" title="Próximos 7 dias, atrasadas e sem prazo">A fazer</a>
     <a href="?status=futuras{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'futuras' %}ativo{% endif %}" title="Prazo depois de 7 dias">Futuras</a>
     <a href="?status=feitas{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'feitas' %}ativo{% endif %}">Realizadas</a>
+    <a href="?status=todas{% if pessoa_sel %}&pessoa={{ pessoa_sel }}{% endif %}{% if tipo_sel %}&tipo={{ tipo_sel }}{% endif %}" class="btn-toggle {% if status == 'todas' %}ativo{% endif %}" title="Todas as tarefas armazenadas">Todas</a>
   </div>
   <form method="get" class="filtros">
     {% if pessoa_sel %}<input type="hidden" name="pessoa" value="{{ pessoa_sel }}">{% endif %}
@@ -64,6 +65,7 @@
     <form method="post" action="{% url 'tarefa_criar' %}">
       {% csrf_token %}
       <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <input type="hidden" name="id" id="campo-id" value="">
       <input type="hidden" name="tipo" id="campo-tipo" value="avulsa">
       <div class="form-grade">
         <label class="col-2">Título
@@ -108,20 +110,45 @@
 (function () {
   var m = document.getElementById('modal-nova');
   if (!m) return;
+  var form = m.querySelector('form');
+  var idF = document.getElementById('campo-id');
   var tipo = document.getElementById('campo-tipo');
   var titulo = document.getElementById('modal-nova-titulo');
   var salvar = document.getElementById('modal-nova-salvar');
   var vinc = m.querySelector('.campo-vinculo');
-  function abrir(reuniao) {
+  function val(nome) { return form.querySelector('[name=' + nome + ']'); }
+  function marcar(nome, ids) {
+    form.querySelectorAll('[name=' + nome + ']').forEach(function (c) { c.checked = ids.indexOf(c.value) >= 0; });
+  }
+  function novo(reuniao) {
+    idF.value = '';
+    val('titulo').value = ''; val('descricao').value = ''; val('prazo').value = '';
+    val('hora').value = ''; val('vinculo').value = '';
+    marcar('responsaveis', []); marcar('temas', []);
     tipo.value = reuniao ? 'reuniao' : 'avulsa';
     titulo.innerHTML = reuniao ? '<i class="bi bi-people"></i> Nova reunião' : '<i class="bi bi-plus-lg"></i> Nova tarefa';
-    salvar.innerHTML = reuniao ? '<i class="bi bi-check-lg"></i> Criar reunião' : '<i class="bi bi-check-lg"></i> Criar tarefa';
+    salvar.innerHTML = '<i class="bi bi-check-lg"></i> ' + (reuniao ? 'Criar reunião' : 'Criar tarefa');
     vinc.style.display = reuniao ? 'none' : '';
     m.hidden = false;
   }
+  function editar(row) {
+    var d = row.dataset;
+    idF.value = d.id; tipo.value = d.tipo || 'avulsa';
+    val('titulo').value = d.titulo || ''; val('descricao').value = d.descricao || '';
+    val('prazo').value = d.prazo || ''; val('hora').value = d.hora || ''; val('vinculo').value = d.vinculo || '';
+    marcar('responsaveis', (d.responsaveis || '').split(','));
+    marcar('temas', (d.temas || '').split(','));
+    titulo.innerHTML = '<i class="bi bi-pencil-square"></i> Editar tarefa';
+    salvar.innerHTML = '<i class="bi bi-check-lg"></i> Salvar';
+    vinc.style.display = '';
+    m.hidden = false;
+  }
   var bn = document.getElementById('abrir-nova'), br = document.getElementById('abrir-reuniao');
-  if (bn) bn.addEventListener('click', function () { abrir(false); });
-  if (br) br.addEventListener('click', function () { abrir(true); });
+  if (bn) bn.addEventListener('click', function () { novo(false); });
+  if (br) br.addEventListener('click', function () { novo(true); });
+  document.querySelectorAll('.js-editar-tarefa').forEach(function (el) {
+    el.addEventListener('click', function () { editar(el.closest('.tarefa-row')); });
+  });
   m.querySelectorAll('[data-fechar]').forEach(function (x) { x.addEventListener('click', function () { m.hidden = true; }); });
   m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.hidden = true; });

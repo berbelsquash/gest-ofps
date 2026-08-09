@@ -33,6 +33,8 @@ def painel_tarefas(request):
         lista = qs.filter(feita=True).order_by("-prazo", "-id")
     elif status == "futuras":
         lista = qs.filter(feita=False, prazo__gt=limite).order_by("prazo", "id")
+    elif status == "todas":
+        lista = qs.order_by("feita", "prazo", "id")
     else:
         status = "afazer"
         lista = (qs.filter(feita=False)
@@ -101,7 +103,8 @@ def agenda(request):
 
 @login_required
 def tarefa_criar(request):
-    """Cria uma tarefa ou reunião (o form manda o tipo)."""
+    """Cria uma tarefa/reunião ou, se vier 'id', edita a existente
+    (título, responsáveis, temas, vínculo, prazo e hora)."""
     voltar = request.POST.get("voltar") or "/"
     if not voltar.startswith("/"):
         voltar = "/"
@@ -110,8 +113,16 @@ def tarefa_criar(request):
         if not titulo:
             messages.error(request, "A tarefa precisa de um título.")
             return redirect(voltar)
-        t = Tarefa(titulo=titulo, descricao=(request.POST.get("descricao") or "").strip())
+        tid = request.POST.get("id")
+        t = Tarefa.objects.filter(pk=tid).first() if tid else None
+        editando = t is not None
+        if not t:
+            t = Tarefa()
+        t.titulo = titulo
+        t.descricao = (request.POST.get("descricao") or "").strip()
         t.tipo = request.POST.get("tipo") or Tarefa.Tipo.AVULSA
+        t.evento = None
+        t.projeto = None
         vinc = request.POST.get("vinculo") or ""
         if vinc.startswith("evento:"):
             t.evento_id = int(vinc.split(":", 1)[1])
@@ -120,26 +131,23 @@ def tarefa_criar(request):
             t.projeto_id = int(vinc.split(":", 1)[1])
             t.tipo = Tarefa.Tipo.PROJETO
         prazo = (request.POST.get("prazo") or "").strip()
-        if prazo:
-            try:
-                t.prazo = date.fromisoformat(prazo)
-            except ValueError:
-                pass
+        try:
+            t.prazo = date.fromisoformat(prazo) if prazo else None
+        except ValueError:
+            pass
         hora = (request.POST.get("hora") or "").strip()
-        if hora:
-            try:
-                t.hora = time.fromisoformat(hora)
-            except ValueError:
-                pass
+        try:
+            t.hora = time.fromisoformat(hora) if hora else None
+        except ValueError:
+            pass
         t.save()
-        resp_ids = request.POST.getlist("responsaveis")
-        if resp_ids:
-            t.responsaveis.set(Pessoa.objects.filter(id__in=resp_ids))
-        tema_ids = request.POST.getlist("temas")
-        if tema_ids:
-            t.temas.set(Tema.objects.filter(id__in=tema_ids))
-        messages.success(
-            request, "Reunião criada." if t.tipo == Tarefa.Tipo.REUNIAO else "Tarefa criada.")
+        t.responsaveis.set(Pessoa.objects.filter(id__in=request.POST.getlist("responsaveis")))
+        t.temas.set(Tema.objects.filter(id__in=request.POST.getlist("temas")))
+        if editando:
+            messages.success(request, "Tarefa atualizada.")
+        else:
+            messages.success(
+                request, "Reunião criada." if t.tipo == Tarefa.Tipo.REUNIAO else "Tarefa criada.")
     return redirect(voltar)
 
 

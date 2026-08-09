@@ -34,7 +34,6 @@ MENU = [
         "area": "painel",
         "titulo": "Filiações",
         "itens": [
-            {"slug": "recebimentos", "label": "Recebimentos", "icone": "bi-cash-coin"},
             {"slug": "resumo-assinaturas", "label": "Resumo & previsões", "icone": "bi-graph-up"},
         ],
     },
@@ -55,6 +54,7 @@ MENU = [
             {"slug": "bases-eventos", "label": "Eventos", "icone": "bi-calendar-event"},
             {"slug": "bases-participacoes", "label": "Participações", "icone": "bi-trophy"},
             {"slug": "assinaturas-adimplencia", "label": "Filiações", "icone": "bi-people"},
+            {"slug": "recebimentos", "label": "Recebimentos filiações", "icone": "bi-cash-coin"},
         ],
     },
 ]

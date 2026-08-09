@@ -1,5 +1,10 @@
-{% comment %}Linha de uma tarefa. Espera `t` no contexto.{% endcomment %}
-<div class="tarefa-row{% if t.feita %} feita{% endif %}{% if t.atrasada %} atrasada{% endif %}">
+{% comment %}Linha de uma tarefa. Espera `t`. Clicar no texto abre o modal de edição (se a página tiver).{% endcomment %}
+<div class="tarefa-row{% if t.feita %} feita{% endif %}{% if t.atrasada %} atrasada{% endif %}"
+     data-id="{{ t.id }}" data-titulo="{{ t.titulo }}" data-descricao="{{ t.descricao }}"
+     data-prazo="{{ t.prazo|date:'Y-m-d' }}" data-hora="{{ t.hora|time:'H:i' }}" data-tipo="{{ t.tipo }}"
+     data-vinculo="{% if t.evento_id %}evento:{{ t.evento_id }}{% elif t.projeto_id %}projeto:{{ t.projeto_id }}{% endif %}"
+     data-responsaveis="{% for r in t.responsaveis.all %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+     data-temas="{% for tm in t.temas.all %}{{ tm.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
   <form method="post" action="{% url 'tarefa_toggle' t.id %}" class="check-form">
     {% csrf_token %}
     <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
@@ -7,7 +12,7 @@
       <i class="bi {% if t.feita %}bi-check-square-fill{% else %}bi-square{% endif %}"></i>
     </button>
   </form>
-  <div class="tarefa-info">
+  <div class="tarefa-info js-editar-tarefa" title="Editar tarefa">
     <span class="tarefa-titulo">{{ t.titulo }}</span>
     <span class="tarefa-meta">
       {% if t.prazo %}<i class="bi bi-calendar-event"></i> {{ t.prazo|date:"d/m/Y" }}{% if t.hora %} · {{ t.hora|time:"H:i" }}{% endif %}{% else %}sem prazo{% endif %}
