@@ -21,27 +21,9 @@ MENU = [
     },
     {
         "area": "painel",
-        "titulo": "Financeira",
+        "titulo": "Dashboards",
         "itens": [
-            {"slug": "financeiro-balanco", "label": "Início", "icone": "bi-house"},
-            {"slug": "financeiro-detalhado", "label": "Detalhado", "icone": "bi-bar-chart-line"},
-            {"slug": "financeiro-eventos", "label": "Eventos", "icone": "bi-calendar-event"},
-            {"slug": "financeiro-previsao", "label": "Previsão", "icone": "bi-graph-up-arrow"},
-            {"slug": "financeiro-relatorios", "label": "Relatórios", "icone": "bi-file-earmark-text"},
-        ],
-    },
-    {
-        "area": "painel",
-        "titulo": "Filiações",
-        "itens": [
-            {"slug": "resumo-assinaturas", "label": "Resumo & previsões", "icone": "bi-graph-up"},
-        ],
-    },
-    {
-        "area": "painel",
-        "titulo": "",
-        "itens": [
-            {"slug": "doc-oficiais", "label": "Documentos", "icone": "bi-folder"},
+            {"slug": "dash-filiacoes", "label": "Filiações", "icone": "bi-graph-up"},
         ],
     },
     # ===================== BASES =====================

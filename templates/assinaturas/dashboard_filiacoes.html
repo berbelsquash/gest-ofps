@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Filiações — Dashboard{% endblock %}
+
+{% block conteudo %}
+<div class="dash-subnav">
+  <div class="dash-tabs">
+    <a href="?aba=geral&ano={{ ano }}{% if plano %}&plano={{ plano }}{% endif %}" class="dash-tab {% if aba == 'geral' %}ativo{% endif %}">Visão geral</a>
+    <a href="?aba=retencao&ano={{ ano }}{% if plano %}&plano={{ plano }}{% endif %}" class="dash-tab {% if aba == 'retencao' %}ativo{% endif %}">Retenção</a>
+    <a href="?aba=movimento&ano={{ ano }}{% if plano %}&plano={{ plano }}{% endif %}" class="dash-tab {% if aba == 'movimento' %}ativo{% endif %}">Movimento</a>
+  </div>
+  <form method="get" class="filtros">
+    <input type="hidden" name="aba" value="{{ aba }}">
+    <select name="ano" onchange="this.form.submit()">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <select name="plano" onchange="this.form.submit()">
+      <option value="">Todos os planos</option>
+      {% for v, l in planos %}<option value="{{ v }}" {% if v == plano %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if aba == 'geral' %}
+<div class="resumo-chips">
+  <div class="chip"><span class="chip-num">{{ total_filiados }}</span><span class="chip-lbl">Filiados ativos</span></div>
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ total_real|floatformat:0 }}</span><span class="chip-lbl">Arrecadado em {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ total_prev|floatformat:0 }}</span><span class="chip-lbl">Previsto até o fim de {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">R$ {{ projecao_ano|floatformat:0 }}</span><span class="chip-lbl">Projeção do ano</span></div>
+</div>
+<div class="cartao" style="padding:18px;">
+  <div class="cartao-topo" style="padding:0 0 12px; border:none;"><span class="contador">Arrecadação mês a mês — {{ ano }}</span><span class="sync-info">realizado + previsto</span></div>
+  <div style="height:300px; position:relative;"><canvas id="grafico"></canvas></div>
+</div>
+{{ realizado|json_script:"d-real" }}{{ previsto|json_script:"d-prev" }}
+
+{% elif aba == 'retencao' %}
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ ltv|floatformat:0 }}</span><span class="chip-lbl">LTV médio (valor no ciclo de vida)</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">{{ churn|floatformat:1 }}%</span><span class="chip-lbl">Churn em {{ ano }} ({{ canc_ano }} cancel.)</span></div>
+  <div class="chip"><span class="chip-num">{{ permanencia_media|floatformat:1 }}</span><span class="chip-lbl">Permanência média (meses)</span></div>
+</div>
+<div class="detalhe-grid">
+  <div class="cartao" style="padding:18px;">
+    <div class="cartao-topo" style="padding:0 0 12px; border:none;"><span class="contador">Curva de sobrevivência</span><span class="sync-info">% ainda filiado após N meses</span></div>
+    <div style="height:280px; position:relative;"><canvas id="grafico"></canvas></div>
+  </div>
+  <div class="cartao">
+    <div class="cartao-topo"><span class="contador">Permanência média por plano</span></div>
+    <table class="tabela">
+      <thead><tr><th>Plano</th><th>Meses (média)</th><th>Filiados</th></tr></thead>
+      <tbody>
+        {% for p in perman_plano %}<tr><td>{{ p.plano }}</td><td><strong>{{ p.meses }}</strong></td><td>{{ p.n }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{ sobrevivencia|json_script:"d-surv" }}{{ sobrev_meses|json_script:"d-surv-m" }}
+
+{% else %}
+<div class="resumo-chips">
+  <div class="chip chip-ok"><span class="chip-num">{{ total_novos }}</span><span class="chip-lbl">Novos filiados em {{ ano }}</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">{{ total_canc }}</span><span class="chip-lbl">Cancelamentos em {{ ano }}</span></div>
+  <div class="chip"><span class="chip-num">{{ inadimplentes }}</span><span class="chip-lbl">Inadimplentes ({{ inad_pct }}% dos {{ ativos }})</span></div>
+</div>
+<div class="cartao" style="padding:18px;">
+  <div class="cartao-topo" style="padding:0 0 12px; border:none;"><span class="contador">Novos × cancelamentos — {{ ano }}</span></div>
+  <div style="height:300px; position:relative;"><canvas id="grafico"></canvas></div>
+</div>
+{{ novos|json_script:"d-novos" }}{{ cancelamentos|json_script:"d-canc" }}
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  if (!window.Chart) return;
+  var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var el = document.getElementById('grafico');
+  if (!el) return;
+  function j(id) { var e = document.getElementById(id); return e ? JSON.parse(e.textContent) : null; }
+  var F = { family: 'Poppins' };
+  var aba = "{{ aba }}";
+  function money(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', {maximumFractionDigits:0}); }
+
+  if (aba === 'geral') {
+    new Chart(el, { type:'bar', data:{ labels:MESES, datasets:[
+      { label:'Realizado', data:j('d-real'), backgroundColor:'#1f9d6b', borderRadius:5 },
+      { label:'Previsto', data:j('d-prev'), backgroundColor:'#c7c1f5', borderRadius:5 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ usePointStyle:true, boxWidth:8, font:F } },
+          tooltip:{ callbacks:{ label:function(c){ return c.dataset.label+': '+money(c.parsed.y); } } } },
+        scales:{ x:{ grid:{display:false}, ticks:{font:F} }, y:{ ticks:{ callback:function(v){return 'R$ '+Math.round(v/1000)+'k';}, font:F }, grid:{color:'#eef1f5'} } } } });
+  } else if (aba === 'retencao') {
+    new Chart(el, { type:'line', data:{ labels:j('d-surv-m'), datasets:[
+      { label:'% filiados', data:j('d-surv'), borderColor:'#7b4dff', backgroundColor:'rgba(123,77,255,.12)', fill:true, tension:.3, spanGaps:true, pointRadius:2 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return c.parsed.y+'% após '+c.label+' meses'; } } } },
+        scales:{ x:{ title:{display:true,text:'meses após a filiação',font:F}, grid:{display:false}, ticks:{font:F} },
+          y:{ min:0, max:100, ticks:{ callback:function(v){return v+'%';}, font:F }, grid:{color:'#eef1f5'} } } } });
+  } else {
+    new Chart(el, { type:'bar', data:{ labels:MESES, datasets:[
+      { label:'Novos', data:j('d-novos'), backgroundColor:'#1f9d6b', borderRadius:5 },
+      { label:'Cancelamentos', data:j('d-canc'), backgroundColor:'#d9584f', borderRadius:5 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ usePointStyle:true, boxWidth:8, font:F } } },
+        scales:{ x:{ grid:{display:false}, ticks:{font:F} }, y:{ beginAtZero:true, ticks:{ precision:0, font:F }, grid:{color:'#eef1f5'} } } } });
+  }
+})();
+</script>
+{% endblock %}

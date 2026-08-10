@@ -1,4 +1,5 @@
 import calendar
+from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
@@ -263,6 +264,110 @@ def resumo(request):
         ativos_count=ativos.count(),
     )
     return render(request, "assinaturas/resumo.html", contexto)
+
+
+def _meses_entre(d1, d2):
+    return (d2.year - d1.year) * 12 + (d2.month - d1.month)
+
+
+@login_required
+def dashboard_filiacoes(request):
+    """Dashboard de Filiações — abas Visão geral / Retenção / Movimento, com
+    filtros por ano e por plano. Fonte: AssinaturaVindi + RecebimentoVindi."""
+    aba = request.GET.get("aba", "geral")
+    if aba not in ("geral", "retencao", "movimento"):
+        aba = "geral"
+    hoje = timezone.localdate()
+    ano = int(request.GET.get("ano") or hoje.year)
+    plano = request.GET.get("plano", "")
+
+    assinaturas = AssinaturaVindi.objects.exclude(tipo=PlanoVindi.Tipo.IGNORAR)
+    recebimentos = RecebimentoVindi.objects.all()
+    if plano:
+        assinaturas = assinaturas.filter(tipo=plano)
+        recebimentos = recebimentos.filter(tipo=plano)
+
+    anos = [d.year for d in RecebimentoVindi.objects.dates("data_pagamento", "year", order="DESC")] or [ano]
+    planos = [(t.value, t.label) for t in PlanoVindi.Tipo if t.value != "ignorar"]
+    ctx = dict(aba=aba, ano=ano, anos=anos, plano=plano, planos=planos, meses=MESES_PT)
+
+    if aba == "geral":
+        realizado = [Decimal("0")] * 12
+        for r in (recebimentos.filter(data_pagamento__year=ano)
+                  .annotate(m=ExtractMonth("data_pagamento")).values("m").annotate(s=Sum("valor"))):
+            if r["m"]:
+                realizado[r["m"] - 1] = r["s"] or Decimal("0")
+        previsto = [Decimal("0")] * 12
+        ativas = assinaturas.exclude(status="canceled").filter(
+            valor_ciclo__gt=0, proxima_cobranca__isnull=False)
+        for a in ativas:
+            intervalo = max(1, a.intervalo_meses or 1)
+            d, guarda = a.proxima_cobranca, 0
+            while d.year <= ano and guarda < 240:
+                if d.year == ano and (ano > hoje.year or d.month > hoje.month):
+                    previsto[d.month - 1] += a.valor_ciclo
+                d = _add_meses(d, intervalo)
+                guarda += 1
+                if d.year > ano:
+                    break
+        total_real, total_prev = sum(realizado), sum(previsto)
+        ctx.update(
+            realizado=[float(x) for x in realizado], previsto=[float(x) for x in previsto],
+            total_real=total_real, total_prev=total_prev, projecao_ano=total_real + total_prev,
+            total_filiados=assinaturas.exclude(status="canceled").count(),
+            ativos_emdia=assinaturas.exclude(status="canceled").filter(inadimplente_desde__isnull=True).count(),
+            novos_ano=assinaturas.filter(data_inicio__year=ano).count(),
+        )
+
+    elif aba == "retencao":
+        subs = [a for a in assinaturas if a.data_inicio]
+        perman, ltv_vals = [], []
+        for a in subs:
+            fim = a.cancelada_em or hoje
+            m = max(0, _meses_entre(a.data_inicio, fim))
+            perman.append(m)
+            vm = float(a.valor_ciclo) / max(1, a.intervalo_meses or 1)
+            ltv_vals.append(vm * max(1, m))
+        canc_ano = assinaturas.filter(status="canceled", cancelada_em__year=ano).count()
+        ativos_atual = assinaturas.exclude(status="canceled").count()
+        pp = defaultdict(list)
+        for a in subs:
+            pp[a.get_tipo_display()].append(max(0, _meses_entre(a.data_inicio, a.cancelada_em or hoje)))
+        perman_plano = [{"plano": k, "meses": round(sum(v) / len(v), 1), "n": len(v)}
+                        for k, v in sorted(pp.items())]
+        N = 24
+        surv = []
+        for mm in range(N + 1):
+            elegiveis = [a for a in subs if _meses_entre(a.data_inicio, hoje) >= mm]
+            if not elegiveis:
+                surv.append(None)
+                continue
+            vivos = sum(1 for a in elegiveis
+                        if a.cancelada_em is None or _meses_entre(a.data_inicio, a.cancelada_em) >= mm)
+            surv.append(round(100 * vivos / len(elegiveis), 1))
+        ctx.update(
+            ltv=(sum(ltv_vals) / len(ltv_vals)) if ltv_vals else 0,
+            permanencia_media=(sum(perman) / len(perman)) if perman else 0,
+            churn=(100 * canc_ano / (ativos_atual + canc_ano)) if (ativos_atual + canc_ano) else 0,
+            canc_ano=canc_ano, perman_plano=perman_plano,
+            sobrevivencia=surv, sobrev_meses=list(range(N + 1)),
+        )
+
+    else:  # movimento
+        novos, canc = [0] * 12, [0] * 12
+        for a in assinaturas.filter(data_inicio__year=ano):
+            novos[a.data_inicio.month - 1] += 1
+        for a in assinaturas.filter(cancelada_em__year=ano):
+            canc[a.cancelada_em.month - 1] += 1
+        inad = assinaturas.exclude(status="canceled").filter(inadimplente_desde__isnull=False).count()
+        ativos = assinaturas.exclude(status="canceled").count()
+        ctx.update(
+            novos=novos, cancelamentos=canc, total_novos=sum(novos), total_canc=sum(canc),
+            inadimplentes=inad, inad_pct=round(100 * inad / ativos, 1) if ativos else 0,
+            ativos=ativos,
+        )
+
+    return render(request, "assinaturas/dashboard_filiacoes.html", contexto_base("dash-filiacoes", **ctx))
 
 
 @login_required

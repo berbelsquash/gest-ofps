@@ -356,6 +356,14 @@ table.tabela-grad td.col-total { text-align: center; }
 /* --------------------------------------------------------------- Tarefas */
 .chip-pessoa { flex: 0 0 200px; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
 .chip-pessoa .chip-topo { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Sub-navegação dos dashboards */
+.dash-subnav { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--borda); }
+.dash-tabs { display: flex; gap: 2px; }
+.dash-tab { padding: 10px 18px; font-size: 14px; font-weight: 500; color: var(--texto-suave); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.dash-tab:hover { color: var(--texto); }
+.dash-tab.ativo { color: var(--marca-ini); border-bottom-color: var(--marca-ini); font-weight: 600; }
+.dash-subnav .filtros { margin-bottom: 8px; }
 .chip-pessoa:hover { border-color: var(--marca-ini); }
 .chip-pessoa.chip-ativa { border-color: var(--marca-ini); box-shadow: 0 0 0 2px rgba(123, 77, 255, .18); }
 .chip-topo { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texto-suave); margin-bottom: 8px; }
