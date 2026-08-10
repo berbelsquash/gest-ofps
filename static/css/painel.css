@@ -267,8 +267,9 @@ table.tabela tbody tr:hover td { background: #fafbfd; }
 
 .vazio-aviso { padding: 44px; text-align: center; color: var(--texto-suave); line-height: 1.7; }
 
-.resumo-chips { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.chip { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 16px 20px; display: flex; flex-direction: column; min-width: 130px; box-shadow: 0 1px 2px rgba(16, 28, 48, .04), 0 6px 20px rgba(16, 28, 48, .04); }
+.resumo-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.chip { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 16px 20px; display: flex; flex-direction: column; justify-content: center; min-height: 92px; box-shadow: 0 1px 2px rgba(16, 28, 48, .04), 0 6px 20px rgba(16, 28, 48, .04); }
+.chip-num { white-space: nowrap; }
 .chip-num { font-size: 25px; font-weight: 700; color: var(--texto); line-height: 1.1; }
 .chip-lbl { font-size: 12px; color: var(--texto-suave); margin-top: 2px; }
 .chip-ok .chip-num { color: #0d6b4a; }
@@ -354,7 +355,7 @@ table.tabela-grad td.col-total { text-align: center; }
 @media (max-width: 760px) { .detalhe-grid { grid-template-columns: 1fr; } }
 
 /* --------------------------------------------------------------- Tarefas */
-.chip-pessoa { flex: 0 0 200px; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.chip-pessoa { text-decoration: none; transition: border-color .15s, box-shadow .15s; }
 .chip-pessoa .chip-topo { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* Sub-navegação dos dashboards */

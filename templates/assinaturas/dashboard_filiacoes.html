@@ -36,8 +36,8 @@
 
 {% elif aba == 'retencao' %}
 <div class="resumo-chips">
-  <div class="chip chip-ok"><span class="chip-num">R$ {{ ltv|floatformat:0 }}</span><span class="chip-lbl">LTV médio (valor no ciclo de vida)</span></div>
-  <div class="chip chip-alerta"><span class="chip-num">{{ churn|floatformat:1 }}%</span><span class="chip-lbl">Churn em {{ ano }} ({{ canc_ano }} cancel.)</span></div>
+  <div class="chip chip-ok"><span class="chip-num">R$ {{ ltv|floatformat:0 }}</span><span class="chip-lbl">LTV médio (recebido, entre pagantes)</span></div>
+  <div class="chip chip-alerta"><span class="chip-num">{{ churn|floatformat:1 }}%</span><span class="chip-lbl">Churn em {{ ano }} ({{ canc_ano }} cancel. reais)</span></div>
   <div class="chip"><span class="chip-num">{{ permanencia_media|floatformat:1 }}</span><span class="chip-lbl">Permanência média (meses)</span></div>
 </div>
 <div class="detalhe-grid">
@@ -64,7 +64,7 @@
   <div class="chip"><span class="chip-num">{{ inadimplentes }}</span><span class="chip-lbl">Inadimplentes ({{ inad_pct }}% dos {{ ativos }})</span></div>
 </div>
 <div class="cartao" style="padding:18px;">
-  <div class="cartao-topo" style="padding:0 0 12px; border:none;"><span class="contador">Novos × cancelamentos — {{ ano }}</span></div>
+  <div class="cartao-topo" style="padding:0 0 12px; border:none;"><span class="contador">Novos × cancelamentos — {{ ano }}</span><span class="sync-info">por pessoa e data de pagamento · exclui quem nunca pagou</span></div>
   <div style="height:300px; position:relative;"><canvas id="grafico"></canvas></div>
 </div>
 {{ novos|json_script:"d-novos" }}{{ cancelamentos|json_script:"d-canc" }}
